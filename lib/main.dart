@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'screens/login/login_screen.dart';
 import 'screens/worker/worker_home_screen.dart';
-import 'screens/admin/admin_dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // TODO: Initialize Firebase with config from Gabriel
+  
+  // TODO: Initialize Firebase when Gabriel provides config
   // await Firebase.initializeApp(
   //   options: FirebaseOptions(...),
   // );
-
+  
   runApp(MyApp());
 }
 
@@ -25,7 +23,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthService()),
       ],
       child: MaterialApp(
-        title: 'Control Asistencia',
+        title: 'Control Asistencia GPS',
         theme: ThemeData(
           primarySwatch: Colors.blue,
           useMaterial3: true,
@@ -50,14 +48,9 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        // If not authenticated, show login
+        // Simple navigation: Login or Worker Home
         if (authService.currentUser == null) {
           return LoginScreen();
-        }
-
-        // Navigate based on user role
-        if (authService.currentUser!.role == 'admin') {
-          return AdminDashboardScreen();
         } else {
           return WorkerHomeScreen();
         }

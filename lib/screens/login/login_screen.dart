@@ -7,270 +7,235 @@ class LoginScreen extends StatefulWidget {
   _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final _workerFormKey = GlobalKey<FormState>();
-  final _adminFormKey = GlobalKey<FormState>();
-
-  // Worker login controllers
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _dniController = TextEditingController();
-  final _workerPasswordController = TextEditingController();
-
-  // Admin login controllers
-  final _emailController = TextEditingController();
-  final _adminPasswordController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
+  final _passwordController = TextEditingController();
 
   @override
   void dispose() {
-    _tabController.dispose();
     _dniController.dispose();
-    _workerPasswordController.dispose();
-    _emailController.dispose();
-    _adminPasswordController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Control de Asistencia'),
-        centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: 'Trabajador'),
-            Tab(text: 'Administrador'),
-          ],
-        ),
-      ),
+      backgroundColor: Colors.blue.shade50,
       body: Consumer<AuthService>(
         builder: (context, authService, _) {
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildWorkerLogin(authService),
-              _buildAdminLogin(authService),
-            ],
+          return Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(24.0),
+              child: Card(
+                elevation: 8,
+                child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Logo/Icon
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.engineering,
+                            size: 50,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                        SizedBox(height: 24),
+                        
+                        // Title
+                        Text(
+                          'Control de Asistencia GPS',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        Text(
+                          'Ingreso de Trabajadores',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.grey.shade600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 32),
+
+                        // DNI Field
+                        TextFormField(
+                          controller: _dniController,
+                          decoration: InputDecoration(
+                            labelText: 'Número de DNI',
+                            hintText: '12345678',
+                            prefixIcon: Icon(Icons.badge),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          keyboardType: TextInputType.number,
+                          maxLength: 8,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Ingrese su DNI';
+                            }
+                            if (value.length != 8) {
+                              return 'El DNI debe tener 8 dígitos';
+                            }
+                            if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+                              return 'El DNI solo debe contener números';
+                            }
+                            return null;
+                          },
+                        ),
+                        SizedBox(height: 16),
+
+                        // Password Field
+                        TextFormField(
+                          controller: _passwordController,
+                          decoration: InputDecoration(
+                            labelText: 'Contraseña',
+                            hintText: 'Ingrese su contraseña',
+                            prefixIcon: Icon(Icons.lock),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          obscureText: true,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Ingrese su contraseña';
+                            }
+                            if (value.length < 6) {
+                              return 'La contraseña debe tener al menos 6 caracteres';
+                            }
+                            return null;
+                          },
+                        ),
+                        SizedBox(height: 24),
+
+                        // Error Message
+                        if (authService.errorMessage != null)
+                          Container(
+                            padding: EdgeInsets.all(12),
+                            margin: EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              border: Border.all(color: Colors.red.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.error_outline, color: Colors.red.shade700),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    authService.errorMessage!,
+                                    style: TextStyle(color: Colors.red.shade700),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        // Login Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: authService.isLoading ? null : _handleLogin,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade600,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: authService.isLoading
+                                ? Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Text('Iniciando sesión...'),
+                                    ],
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.login),
+                                      SizedBox(width: 8),
+                                      Text('Iniciar Sesión'),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                        
+                        SizedBox(height: 16),
+                        
+                        // Help Text
+                        Text(
+                          'Usa tu DNI y contraseña proporcionados\npor el administrador',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey.shade600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _buildWorkerLogin(AuthService authService) {
-    return Padding(
-      padding: EdgeInsets.all(24.0),
-      child: Form(
-        key: _workerFormKey,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.engineering,
-              size: 80,
-              color: Colors.blue,
-            ),
-            SizedBox(height: 32),
-            Text(
-              'Ingreso Trabajador',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            SizedBox(height: 32),
-            TextFormField(
-              controller: _dniController,
-              decoration: InputDecoration(
-                labelText: 'Número de DNI',
-                prefixIcon: Icon(Icons.badge),
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Ingrese su DNI';
-                }
-                if (value.length != 8) {
-                  return 'El DNI debe tener 8 dígitos';
-                }
-                return null;
-              },
-            ),
-            SizedBox(height: 16),
-            TextFormField(
-              controller: _workerPasswordController,
-              decoration: InputDecoration(
-                labelText: 'Contraseña',
-                prefixIcon: Icon(Icons.lock),
-                border: OutlineInputBorder(),
-              ),
-              obscureText: true,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Ingrese su contraseña';
-                }
-                return null;
-              },
-            ),
-            SizedBox(height: 24),
-            if (authService.errorMessage != null)
-              Container(
-                padding: EdgeInsets.all(8),
-                margin: EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade100,
-                  border: Border.all(color: Colors.red),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  authService.errorMessage!,
-                  style: TextStyle(color: Colors.red.shade700),
-                ),
-              ),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: authService.isLoading
-                    ? null
-                    : () => _handleWorkerLogin(authService),
-                child: authService.isLoading
-                    ? CircularProgressIndicator(color: Colors.white)
-                    : Text('Iniciar Sesión'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdminLogin(AuthService authService) {
-    return Padding(
-      padding: EdgeInsets.all(24.0),
-      child: Form(
-        key: _adminFormKey,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.admin_panel_settings,
-              size: 80,
-              color: Colors.orange,
-            ),
-            SizedBox(height: 32),
-            Text(
-              'Panel Administrativo',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            SizedBox(height: 32),
-            TextFormField(
-              controller: _emailController,
-              decoration: InputDecoration(
-                labelText: 'Correo Electrónico',
-                prefixIcon: Icon(Icons.email),
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Ingrese su correo';
-                }
-                if (!value.contains('@')) {
-                  return 'Ingrese un correo válido';
-                }
-                return null;
-              },
-            ),
-            SizedBox(height: 16),
-            TextFormField(
-              controller: _adminPasswordController,
-              decoration: InputDecoration(
-                labelText: 'Contraseña',
-                prefixIcon: Icon(Icons.lock),
-                border: OutlineInputBorder(),
-              ),
-              obscureText: true,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Ingrese su contraseña';
-                }
-                return null;
-              },
-            ),
-            SizedBox(height: 24),
-            if (authService.errorMessage != null)
-              Container(
-                padding: EdgeInsets.all(8),
-                margin: EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade100,
-                  border: Border.all(color: Colors.red),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  authService.errorMessage!,
-                  style: TextStyle(color: Colors.red.shade700),
-                ),
-              ),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: authService.isLoading
-                    ? null
-                    : () => _handleAdminLogin(authService),
-                child: authService.isLoading
-                    ? CircularProgressIndicator(color: Colors.white)
-                    : Text('Acceder al Panel'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _handleWorkerLogin(AuthService authService) async {
-    if (_workerFormKey.currentState!.validate()) {
+  void _handleLogin() async {
+    if (_formKey.currentState!.validate()) {
+      final authService = context.read<AuthService>();
       authService.clearError();
+      
       bool success = await authService.loginWorker(
         _dniController.text.trim(),
-        _workerPasswordController.text,
+        _passwordController.text,
       );
 
       if (!success) {
         // Error message is already set in AuthService
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al iniciar sesión'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _handleAdminLogin(AuthService authService) async {
-    if (_adminFormKey.currentState!.validate()) {
-      authService.clearError();
-      bool success = await authService.loginAdmin(
-        _emailController.text.trim(),
-        _adminPasswordController.text,
-      );
-
-      if (!success) {
-        // Error message is already set in AuthService
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al acceder al panel'),
-            backgroundColor: Colors.red,
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Error al iniciar sesión'),
+              ],
+            ),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
