@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
+import '../../constants/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -22,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.blue.shade50,
+      backgroundColor: AppColors.background,
       body: Consumer<AuthService>(
         builder: (context, authService, _) {
           return Center(
@@ -37,28 +38,38 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Logo/Icon
+                        // Logo de la empresa
                         Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade100,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.engineering,
-                            size: 50,
-                            color: Colors.blue.shade700,
+                          width: 120,
+                          height: 120,
+                          margin: EdgeInsets.only(bottom: 16),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              color: AppColors.primary,
+                              padding: EdgeInsets.all(16),
+                              child: Image.asset(
+                                'assets/images/logo_white.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  // Fallback si no encuentra la imagen
+                                  return Icon(
+                                    Icons.engineering,
+                                    size: 60,
+                                    color: AppColors.textOnPrimary,
+                                  );
+                                },
+                              ),
+                            ),
                           ),
                         ),
-                        SizedBox(height: 24),
                         
                         // Title
                         Text(
                           'Control de Asistencia GPS',
                           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade700,
+                            color: AppColors.primary,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -158,8 +169,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: ElevatedButton(
                             onPressed: authService.isLoading ? null : _handleLogin,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue.shade600,
-                              foregroundColor: Colors.white,
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.textOnPrimary,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'screens/login/login_screen.dart';
 import 'screens/worker/worker_home_screen.dart';
+import 'constants/app_colors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,8 +26,19 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Control Asistencia GPS',
         theme: ThemeData(
-          primarySwatch: Colors.blue,
+          primarySwatch: AppColors.primarySwatch,
+          primaryColor: AppColors.primary,
           useMaterial3: true,
+          appBarTheme: AppBarTheme(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.textOnPrimary,
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.textOnPrimary,
+            ),
+          ),
         ),
         home: AuthWrapper(),
       ),
