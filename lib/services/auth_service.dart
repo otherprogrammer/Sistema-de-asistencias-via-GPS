@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 
 class AuthService extends ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   UserModel? _currentUser;
-  bool _isLoading = true;
+  bool _isLoading = false;
   String? _errorMessage;
 
   UserModel? get currentUser => _currentUser;
@@ -16,87 +11,74 @@ class AuthService extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   AuthService() {
-    _initializeAuth();
+    _isLoading = false;
   }
 
-  void _initializeAuth() {
-    _auth.authStateChanges().listen((User? firebaseUser) async {
-      if (firebaseUser != null) {
-        await _loadUserData(firebaseUser.uid);
-      } else {
-        _currentUser = null;
-      }
-      _isLoading = false;
-      notifyListeners();
-    });
-  }
-
-  Future<void> _loadUserData(String uid) async {
-    try {
-      DocumentSnapshot doc =
-          await _firestore.collection('users').doc(uid).get();
-      if (doc.exists) {
-        _currentUser =
-            UserModel.fromFirestore(doc.data() as Map<String, dynamic>, uid);
-      }
-    } catch (e) {
-      print('Error loading user data: $e');
-      _errorMessage = 'Error al cargar datos del usuario';
-    }
-  }
-
-  // Login for Workers (DNI + Password)
+  // Login for Workers (DNI + Password) - MOCK VERSION
   Future<bool> loginWorker(String dni, String password) async {
     try {
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
 
-      // For now, we'll use a fake email format for DNI-based auth
-      // Gabriel will need to set up the proper authentication system
-      String email = '${dni}@worker.app';
+      // Simulate network delay
+      await Future.delayed(Duration(seconds: 1));
 
-      UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (result.user != null) {
-        await _loadUserData(result.user!.uid);
+      // MOCK: Simple validation
+      if (dni.length == 8 && password.length >= 6) {
+        _currentUser = UserModel(
+          uid: 'worker_$dni',
+          role: 'trabajador',
+          dni: dni,
+          fullName: 'Trabajador Test',
+          assignedWorksiteId: 'obra_001',
+        );
         _isLoading = false;
         notifyListeners();
         return true;
+      } else {
+        _errorMessage = 'DNI debe tener 8 dígitos y contraseña mínimo 6 caracteres';
+        _isLoading = false;
+        notifyListeners();
+        return false;
       }
-      return false;
     } catch (e) {
-      _errorMessage = _getErrorMessage(e);
+      _errorMessage = 'Error de conexión';
       _isLoading = false;
       notifyListeners();
       return false;
     }
   }
 
-  // Login for Admins (Email + Password)
+  // Login for Admins (Email + Password) - MOCK VERSION
   Future<bool> loginAdmin(String email, String password) async {
     try {
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
 
-      UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      // Simulate network delay
+      await Future.delayed(Duration(seconds: 1));
 
-      if (result.user != null) {
-        await _loadUserData(result.user!.uid);
+      // MOCK: Simple validation
+      if (email.contains('@') && password.length >= 6) {
+        _currentUser = UserModel(
+          uid: 'admin_${email.split('@')[0]}',
+          role: 'admin',
+          email: email,
+          fullName: 'Admin Test',
+        );
         _isLoading = false;
         notifyListeners();
         return true;
+      } else {
+        _errorMessage = 'Email inválido o contraseña muy corta';
+        _isLoading = false;
+        notifyListeners();
+        return false;
       }
-      return false;
     } catch (e) {
-      _errorMessage = _getErrorMessage(e);
+      _errorMessage = 'Error de conexión';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -104,28 +86,9 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
     _currentUser = null;
     _errorMessage = null;
     notifyListeners();
-  }
-
-  String _getErrorMessage(dynamic error) {
-    if (error is FirebaseAuthException) {
-      switch (error.code) {
-        case 'user-not-found':
-          return 'Usuario no encontrado';
-        case 'wrong-password':
-          return 'Contraseña incorrecta';
-        case 'invalid-email':
-          return 'Correo electrónico inválido';
-        case 'too-many-requests':
-          return 'Demasiados intentos. Intenta más tarde';
-        default:
-          return 'Error de autenticación: ${error.message}';
-      }
-    }
-    return 'Error desconocido';
   }
 
   void clearError() {
