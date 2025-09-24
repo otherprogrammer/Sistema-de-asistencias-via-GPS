@@ -3,14 +3,16 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 
 class WorkerHomeScreen extends StatelessWidget {
+  const WorkerHomeScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Control Asistencia'),
+        title: const Text('Control Asistencia'),
         actions: [
           IconButton(
-            icon: Icon(Icons.logout),
+            icon: const Icon(Icons.logout),
             onPressed: () {
               context.read<AuthService>().signOut();
             },
@@ -22,20 +24,20 @@ class WorkerHomeScreen extends StatelessWidget {
           final user = authService.currentUser!;
 
           return Padding(
-            padding: EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
                 // User info
                 Card(
                   child: Padding(
-                    padding: EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(16.0),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          child: Icon(Icons.person),
+                        const CircleAvatar(
                           radius: 30,
+                          child: Icon(Icons.person),
                         ),
-                        SizedBox(width: 16),
+                        const SizedBox(width: 16),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -44,7 +46,7 @@ class WorkerHomeScreen extends StatelessWidget {
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                             Text('DNI: ${user.dni}'),
-                            Text('Trabajador'),
+                            const Text('Trabajador'),
                           ],
                         ),
                       ],
@@ -52,7 +54,7 @@ class WorkerHomeScreen extends StatelessWidget {
                   ),
                 ),
 
-                SizedBox(height: 32),
+                const SizedBox(height: 32),
 
                 // Check-in/out buttons (placeholder)
                 Row(
@@ -62,33 +64,33 @@ class WorkerHomeScreen extends StatelessWidget {
                         onPressed: () {
                           // TODO: Implement check-in logic
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
+                            const SnackBar(
                                 content: Text('Marcar Entrada - Próximamente')),
                           );
                         },
-                        icon: Icon(Icons.login),
-                        label: Text('Marcar\nEntrada'),
+                        icon: const Icon(Icons.login),
+                        label: const Text('Marcar\nEntrada'),
                         style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(24),
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
                         ),
                       ),
                     ),
-                    SizedBox(width: 16),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
                           // TODO: Implement check-out logic
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
+                            const SnackBar(
                                 content: Text('Marcar Salida - Próximamente')),
                           );
                         },
-                        icon: Icon(Icons.logout),
-                        label: Text('Marcar\nSalida'),
+                        icon: const Icon(Icons.logout),
+                        label: const Text('Marcar\nSalida'),
                         style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(24),
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
                         ),
@@ -97,18 +99,18 @@ class WorkerHomeScreen extends StatelessWidget {
                   ],
                 ),
 
-                SizedBox(height: 32),
+                const SizedBox(height: 32),
 
                 // History button
                 ListTile(
-                  leading: Icon(Icons.history),
-                  title: Text('Ver Historial'),
-                  subtitle: Text('Consulta tus registros de asistencia'),
-                  trailing: Icon(Icons.arrow_forward_ios),
+                  leading: const Icon(Icons.history),
+                  title: const Text('Ver Historial'),
+                  subtitle: const Text('Consulta tus registros de asistencia'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
                   onTap: () {
                     // TODO: Navigate to history screen
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Historial - Próximamente')),
+                      const SnackBar(content: Text('Historial - Próximamente')),
                     );
                   },
                 ),

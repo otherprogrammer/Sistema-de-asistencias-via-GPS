@@ -47,7 +47,7 @@ class DatabaseService {
   ];
 
   // Contraseñas para trabajadores (DNI como identificador)
-  Map<String, String> _passwords = {
+  final Map<String, String> _passwords = {
     '12345678': '123456', // Primeros 6 dígitos del DNI
     '87654321': '876543',
     '11111111': '111111',
@@ -95,15 +95,13 @@ class DatabaseService {
   /// Autenticar usuario por DNI (trabajadores)
   Future<UserModel?> authenticateWorkerByDni(String dni, String password) async {
     // Simular delay de red
-    await Future.delayed(Duration(milliseconds: 800));
+    await Future.delayed(const Duration(milliseconds: 800));
     
     // Buscar usuario por DNI
     UserModel? user = _mockUsers.firstWhere(
       (u) => u.dni == dni && u.role == 'trabajador',
       orElse: () => throw Exception('User not found'),
     );
-    
-    if (user == null) return null;
     
     // Verificar contraseña
     if (_passwords[dni] != password) {
@@ -133,7 +131,7 @@ bool hasPermission(UserModel user, String permission) {
 
 /// Obtener usuario por UID
 Future<UserModel?> getUserById(String uid) async {
-  await Future.delayed(Duration(milliseconds: 200));
+  await Future.delayed(const Duration(milliseconds: 200));
   
   try {
     return _mockUsers.firstWhere((u) => u.uid == uid);
@@ -144,13 +142,13 @@ Future<UserModel?> getUserById(String uid) async {
 
   /// Obtener todos los trabajadores
   Future<List<UserModel>> getAllWorkers() async {
-    await Future.delayed(Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 500));
     return _mockUsers.where((u) => u.role == 'trabajador').toList();
   }
 
   /// Obtener trabajadores por obra
   Future<List<UserModel>> getWorkersByWorksite(String worksiteId) async {
-    await Future.delayed(Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 300));
     return _mockUsers.where((u) => 
       u.role == 'trabajador' && u.assignedWorksiteId == worksiteId
     ).toList();
@@ -165,7 +163,7 @@ Future<UserModel?> getUserById(String uid) async {
     String? assignedWorksiteId,
     bool isActive = true,
   }) async {
-    await Future.delayed(Duration(milliseconds: 600));
+    await Future.delayed(const Duration(milliseconds: 600));
     
     String uid = 'generated_${DateTime.now().millisecondsSinceEpoch}';
     
@@ -187,7 +185,7 @@ Future<UserModel?> getUserById(String uid) async {
 
   /// Actualizar usuario
   Future<void> updateUser(String uid, Map<String, dynamic> updates) async {
-    await Future.delayed(Duration(milliseconds: 400));
+    await Future.delayed(const Duration(milliseconds: 400));
     
     int index = _mockUsers.indexWhere((u) => u.uid == uid);
     if (index != -1) {
@@ -202,7 +200,7 @@ Future<UserModel?> getUserById(String uid) async {
 
   /// Cambiar contraseña (simulado)
   Future<void> changePassword(String identifier, String newPassword) async {
-    await Future.delayed(Duration(milliseconds: 400));
+    await Future.delayed(const Duration(milliseconds: 400));
     _passwords[identifier] = newPassword;
     // En un sistema real, esto se guardaría de forma segura
     print('Password changed for $identifier');

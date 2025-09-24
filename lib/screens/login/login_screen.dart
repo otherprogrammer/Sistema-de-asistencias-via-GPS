@@ -4,6 +4,8 @@ import '../../services/auth_service.dart';
 import '../../constants/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -28,11 +30,11 @@ class _LoginScreenState extends State<LoginScreen> {
         builder: (context, authService, _) {
           return Center(
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(24.0),
               child: Card(
                 elevation: 8,
                 child: Padding(
-                  padding: EdgeInsets.all(32.0),
+                  padding: const EdgeInsets.all(32.0),
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -42,18 +44,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         Container(
                           width: 120,
                           height: 120,
-                          margin: EdgeInsets.only(bottom: 16),
+                          margin: const EdgeInsets.only(bottom: 16),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(16),
                             child: Container(
                               color: AppColors.primary,
-                              padding: EdgeInsets.all(16),
+                              padding: const EdgeInsets.all(16),
                               child: Image.asset(
                                 'assets/images/logo_white.png',
                                 fit: BoxFit.contain,
                                 errorBuilder: (context, error, stackTrace) {
                                   // Fallback si no encuentra la imagen
-                                  return Icon(
+                                  return const Icon(
                                     Icons.engineering,
                                     size: 60,
                                     color: AppColors.textOnPrimary,
@@ -80,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        SizedBox(height: 32),
+                        const SizedBox(height: 32),
 
                         // DNI Field
                         TextFormField(
@@ -88,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: InputDecoration(
                             labelText: 'Número de DNI',
                             hintText: '12345678',
-                            prefixIcon: Icon(Icons.badge),
+                            prefixIcon: const Icon(Icons.badge),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -110,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             return null;
                           },
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
                         // Password Field
                         TextFormField(
@@ -118,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: InputDecoration(
                             labelText: 'Contraseña',
                             hintText: 'Ingrese su contraseña',
-                            prefixIcon: Icon(Icons.lock),
+                            prefixIcon: const Icon(Icons.lock),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -136,13 +138,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             return null;
                           },
                         ),
-                        SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
                         // Error Message
                         if (authService.errorMessage != null)
                           Container(
-                            padding: EdgeInsets.all(12),
-                            margin: EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 16),
                             decoration: BoxDecoration(
                               color: Colors.red.shade50,
                               border: Border.all(color: Colors.red.shade300),
@@ -151,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: Row(
                               children: [
                                 Icon(Icons.error_outline, color: Colors.red.shade700),
-                                SizedBox(width: 8),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     authService.errorMessage!,
@@ -176,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             child: authService.isLoading
-                                ? Row(
+                                ? const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       SizedBox(
@@ -191,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       Text('Iniciando sesión...'),
                                     ],
                                   )
-                                : Row(
+                                : const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(Icons.login),
@@ -202,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         
                         // Help Text
                         Text(
@@ -238,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Error message is already set in AuthService
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
                 Icon(Icons.error_outline, color: Colors.white),
                 SizedBox(width: 8),

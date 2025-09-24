@@ -1,22 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'screens/login/login_screen.dart';
 import 'screens/worker/worker_home_screen.dart';
 import 'constants/app_colors.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // TODO: Initialize Firebase when Gabriel provides config
-  // await Firebase.initializeApp(
-  //   options: FirebaseOptions(...),
-  // );
+  // Initialize Firebase with Gabriel's configuration
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -29,7 +33,7 @@ class MyApp extends StatelessWidget {
           primarySwatch: AppColors.primarySwatch,
           primaryColor: AppColors.primary,
           useMaterial3: true,
-          appBarTheme: AppBarTheme(
+          appBarTheme: const AppBarTheme(
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.textOnPrimary,
           ),
@@ -47,20 +51,20 @@ class MyApp extends StatelessWidget {
 }
 
 class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Consumer<AuthService>(
       builder: (context, authService, _) {
-        // If loading, show loading screen
         if (authService.isLoading) {
-          return Scaffold(
+          return const Scaffold(
             body: Center(
               child: CircularProgressIndicator(),
             ),
           );
         }
 
-        // Simple navigation: Login or Worker Home
         if (authService.currentUser == null) {
           return LoginScreen();
         } else {

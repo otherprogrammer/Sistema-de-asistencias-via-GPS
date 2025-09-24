@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "211804314703",
+    "project_id": "sistema-asistencia-gps",
+    "storage_bucket": "sistema-asistencia-gps.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:211804314703:android:4a074572f60519b4cf9e3a",
+        "android_client_info": {
+          "package_name": "com.example.flutter_gps"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAPwXMBZPYarLW_0aWHVEJaTKw3KJnhJyY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

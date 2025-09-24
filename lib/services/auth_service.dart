@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
-import 'database_service.dart';
 
 class AuthService extends ChangeNotifier {
-  final DatabaseService _db = DatabaseService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   UserModel? _currentUser;
-  bool _isLoading = false;
+  bool _isLoading = true;
   String? _errorMessage;
 
   UserModel? get currentUser => _currentUser;
@@ -14,21 +16,36 @@ class AuthService extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   AuthService() {
-    _initializeService();
+    _initializeAuth();
   }
 
-  /// Inicializar el servicio
-  Future<void> _initializeService() async {
-    _isLoading = true;
-    notifyListeners();
-    
-    await _db.initializeDatabase();
-    
-    _isLoading = false;
-    notifyListeners();
+  /// Inicializar listener de autenticación
+  void _initializeAuth() {
+    _auth.authStateChanges().listen((User? firebaseUser) async {
+      if (firebaseUser != null) {
+        await _loadUserData(firebaseUser.uid);
+      } else {
+        _currentUser = null;
+      }
+      _isLoading = false;
+      notifyListeners();
+    });
   }
 
-  /// Login para trabajadores (DNI + Password) con validación de roles
+  /// Cargar datos del usuario desde Firestore
+  Future<void> _loadUserData(String uid) async {
+    try {
+      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
+      if (doc.exists) {
+        _currentUser = UserModel.fromFirestore(doc.data() as Map<String, dynamic>, uid);
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+      _errorMessage = 'Error al cargar datos del usuario';
+    }
+  }
+
+  /// Login para trabajadores (DNI + Password)
   Future<bool> loginWorker(String dni, String password) async {
     try {
       _isLoading = true;
@@ -50,28 +67,92 @@ class AuthService extends ChangeNotifier {
         return false;
       }
 
-      // Autenticar con la base de datos
-      UserModel? user = await _db.authenticateWorkerByDni(dni, password);
-      
-      if (user != null) {
-        // Verificar permisos específicos para trabajadores
-        if (!_db.hasPermission(user, 'mark_attendance')) {
-          _errorMessage = 'No tienes permisos para registrar asistencia';
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
-        
-        _currentUser = user;
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      } else {
-        _errorMessage = 'DNI o contraseña incorrectos';
+      // Buscar usuario por DNI en Firestore
+      QuerySnapshot querySnapshot = await _firestore
+          .collection('users')
+          .where('dni', isEqualTo: dni)
+          .where('role', isEqualTo: 'trabajador')
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        _errorMessage = 'DNI no registrado en el sistema';
         _isLoading = false;
         notifyListeners();
         return false;
       }
+
+      // Obtener datos del usuario
+      DocumentSnapshot userDoc = querySnapshot.docs.first;
+      UserModel user = UserModel.fromFirestore(
+        userDoc.data() as Map<String, dynamic>, 
+        userDoc.id
+      );
+      
+      // Verificar que el usuario esté activo
+      if (!user.isActive) {
+        _errorMessage = 'Tu cuenta está inactiva. Contacta al administrador';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      // Crear email temporal para Firebase Auth (basado en DNI)
+      String tempEmail = '${dni}@worker.temp';
+      
+      try {
+        // Intentar login con Firebase Auth
+        UserCredential result = await _auth.signInWithEmailAndPassword(
+          email: tempEmail,
+          password: password,
+        );
+
+        if (result.user != null) {
+          // Actualizar el UID en Firestore si es diferente
+          if (userDoc.id != result.user!.uid) {
+            await _firestore.collection('users').doc(result.user!.uid).set(user.toFirestore());
+            // Opcional: eliminar el documento anterior
+            // await _firestore.collection('users').doc(userDoc.id).delete();
+          }
+          
+          await _loadUserData(result.user!.uid);
+          _isLoading = false;
+          notifyListeners();
+          return true;
+        }
+      } catch (authError) {
+        // Si el usuario no existe en Firebase Auth, crearlo
+        if (authError.toString().contains('user-not-found')) {
+          try {
+            UserCredential createResult = await _auth.createUserWithEmailAndPassword(
+              email: tempEmail,
+              password: password,
+            );
+            
+            if (createResult.user != null) {
+              // Crear documento en Firestore con el UID de Firebase Auth
+              await _firestore.collection('users').doc(createResult.user!.uid).set(user.toFirestore());
+              
+              await _loadUserData(createResult.user!.uid);
+              _isLoading = false;
+              notifyListeners();
+              return true;
+            }
+          } catch (createError) {
+            _errorMessage = _handleError(createError);
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+        } else {
+          _errorMessage = _handleError(authError);
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+      }
+
+      return false;
     } catch (e) {
       _errorMessage = _handleError(e);
       _isLoading = false;
@@ -80,34 +161,31 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  /// Verificar si el usuario actual tiene un permiso específico
-  bool hasPermission(String permission) {
-    if (_currentUser == null) return false;
-    return _db.hasPermission(_currentUser!, permission);
-  }
-
   /// Cambiar contraseña del usuario actual
   Future<bool> changePassword(String currentPassword, String newPassword) async {
-    if (_currentUser == null) return false;
+    if (_currentUser == null || _auth.currentUser == null) return false;
     
     try {
       _isLoading = true;
       notifyListeners();
 
-      // Para trabajadores, el identificador es el DNI
-      String identifier = _currentUser!.dni!;
+      // Re-autenticar al usuario
+      String tempEmail = '${_currentUser!.dni}@worker.temp';
+      AuthCredential credential = EmailAuthProvider.credential(
+        email: tempEmail, 
+        password: currentPassword
+      );
       
-      // Verificar contraseña actual (aquí simularíamos la verificación)
-      await Future.delayed(Duration(milliseconds: 500));
+      await _auth.currentUser!.reauthenticateWithCredential(credential);
       
       // Cambiar contraseña
-      await _db.changePassword(identifier, newPassword);
+      await _auth.currentUser!.updatePassword(newPassword);
       
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = 'Error al cambiar contraseña';
+      _errorMessage = 'Error al cambiar contraseña: ${_handleError(e)}';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -116,6 +194,7 @@ class AuthService extends ChangeNotifier {
 
   /// Cerrar sesión
   Future<void> signOut() async {
+    await _auth.signOut();
     _currentUser = null;
     _errorMessage = null;
     notifyListeners();
@@ -129,56 +208,66 @@ class AuthService extends ChangeNotifier {
 
   /// Obtener información completa del usuario actual
   Future<void> refreshCurrentUser() async {
-    if (_currentUser == null) return;
+    if (_auth.currentUser == null) return;
     
     try {
-      UserModel? updatedUser = await _db.getUserById(_currentUser!.uid);
-      if (updatedUser != null) {
-        _currentUser = updatedUser;
-        notifyListeners();
-      }
+      await _loadUserData(_auth.currentUser!.uid);
     } catch (e) {
       print('Error refreshing user data: $e');
     }
   }
 
   /// Getters útiles para trabajadores
-  bool get isLoggedIn => _currentUser != null;
+  bool get isLoggedIn => _currentUser != null && _auth.currentUser != null;
   bool get isActive => _currentUser?.isActive ?? false;
   String? get workerDni => _currentUser?.dni;
   String? get workerName => _currentUser?.fullName;
   String? get assignedWorksiteId => _currentUser?.assignedWorksiteId;
+  String? get currentUserId => _auth.currentUser?.uid;
 
   /// Verificar permisos específicos de trabajador
-  bool get canMarkAttendance => hasPermission('mark_attendance');
-  bool get canViewHistory => hasPermission('view_own_history');
+  bool get canMarkAttendance => _currentUser?.role == 'trabajador' && isActive;
+  bool get canViewHistory => _currentUser?.role == 'trabajador' && isActive;
 
   /// Manejo de errores con mensajes amigables
   String _handleError(dynamic error) {
-    String errorMsg = error.toString();
-    
-    if (errorMsg.contains('User not found')) {
-      return 'DNI no registrado en el sistema';
-    } else if (errorMsg.contains('Invalid password')) {
-      return 'Contraseña incorrecta';
-    } else if (errorMsg.contains('User account is inactive')) {
-      return 'Tu cuenta está inactiva. Contacta al administrador';
-    } else if (errorMsg.contains('No internet')) {
-      return 'Sin conexión a internet';
+    if (error is FirebaseAuthException) {
+      switch (error.code) {
+        case 'user-not-found':
+          return 'DNI no registrado en el sistema';
+        case 'wrong-password':
+          return 'Contraseña incorrecta';
+        case 'invalid-email':
+          return 'Formato de correo inválido';
+        case 'too-many-requests':
+          return 'Demasiados intentos fallidos. Espera un momento';
+        case 'network-request-failed':
+          return 'Error de conexión. Verifica tu internet';
+        case 'email-already-in-use':
+          return 'Este DNI ya está registrado';
+        default:
+          return 'Error de autenticación: ${error.message}';
+      }
     } else {
-      return 'Error de conexión. Inténtalo de nuevo';
+      String errorMsg = error.toString();
+      if (errorMsg.contains('User account is inactive')) {
+        return 'Tu cuenta está inactiva. Contacta al administrador';
+      } else {
+        return 'Error de conexión. Inténtalo de nuevo';
+      }
     }
   }
 
-  /// Método para debugging (solo en desarrollo)
+  /// Método para debugging
   void debugPrintUserInfo() {
     if (_currentUser != null) {
-      print('=== TRABAJADOR ACTUAL ===');
+      print('=== TRABAJADOR FIREBASE ===');
       print('UID: ${_currentUser!.uid}');
       print('Nombre: ${_currentUser!.fullName}');
       print('DNI: ${_currentUser!.dni}');
       print('Obra asignada: ${_currentUser!.assignedWorksiteId}');
       print('Activo: ${_currentUser!.isActive}');
+      print('Firebase User: ${_auth.currentUser?.email}');
       print('Puede marcar asistencia: $canMarkAttendance');
       print('Puede ver historial: $canViewHistory');
       print('========================');
