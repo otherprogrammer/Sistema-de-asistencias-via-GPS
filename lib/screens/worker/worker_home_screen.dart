@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../services/auth_service.dart';
 import '../../services/location_service.dart';
+import '../../services/attendance_service.dart';
 import '../../constants/app_colors.dart';
 
 class WorkerHomeScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class WorkerHomeScreen extends StatefulWidget {
 
 class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   final LocationService _locationService = LocationService();
+  final AttendanceService _attendanceService = AttendanceService();
   bool _isProcessingLocation = false;
 
   @override
@@ -213,6 +215,14 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   Future<void> _handleMarkAttendance(BuildContext context, String type) async {
     if (_isProcessingLocation) return;
 
+    final authService = context.read<AuthService>();
+    final user = authService.currentUser;
+    
+    if (user == null || user.assignedWorksiteId == null) {
+      _showErrorDialog(context, 'Usuario o obra no válidos');
+      return;
+    }
+
     setState(() {
       _isProcessingLocation = true;
     });
@@ -228,32 +238,36 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
             children: [
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              Text('Obteniendo ubicación GPS...'),
+              Text('${type == 'entrada' ? 'Marcando entrada' : 'Marcando salida'}...'),
             ],
           ),
         ),
       );
 
-      // Obtener ubicación actual
-      Position? position = await _locationService.getCurrentLocation();
+      String attendanceId;
+      
+      if (type == 'entrada') {
+        attendanceId = await _attendanceService.markCheckIn(
+          workerId: user.uid,
+          worksiteId: user.assignedWorksiteId!,
+        );
+      } else {
+        attendanceId = await _attendanceService.markCheckOut(
+          workerId: user.uid,
+          worksiteId: user.assignedWorksiteId!,
+        );
+      }
       
       // Cerrar dialog de progreso
       if (context.mounted) {
         Navigator.of(context).pop();
       }
 
-      if (position != null) {
-        // TODO: Aquí validar geofencing con datos de la obra
-        // Por ahora solo mostramos la ubicación obtenida
-        
-        if (context.mounted) {
-          _showLocationResult(context, type, position);
-        }
-      } else {
-        if (context.mounted) {
-          _showErrorDialog(context, 'No se pudo obtener la ubicación GPS');
-        }
+      // Mostrar éxito
+      if (context.mounted) {
+        _showSuccessDialog(context, type, attendanceId);
       }
+
     } catch (e) {
       // Cerrar dialog si está abierto
       if (context.mounted && Navigator.of(context).canPop()) {
@@ -261,7 +275,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
       }
 
       if (context.mounted) {
-        String errorMsg = _locationService.getLocationErrorMessage(e);
+        String errorMsg = _getAttendanceErrorMessage(e);
         _showErrorDialog(context, errorMsg);
       }
     } finally {
@@ -271,22 +285,26 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     }
   }
 
-  /// Mostrar resultado de la ubicación obtenida
-  void _showLocationResult(BuildContext context, String type, Position position) {
+  /// Mostrar dialog de éxito
+  void _showSuccessDialog(BuildContext context, String type, String attendanceId) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${type.toUpperCase()} registrada'),
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: AppColors.success),
+            const SizedBox(width: 8),
+            Text('${type.toUpperCase()} Registrada'),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Ubicación GPS capturada:'),
+            Text('Tu ${type} ha sido registrada exitosamente.'),
             const SizedBox(height: 8),
-            Text('Latitud: ${position.latitude.toStringAsFixed(6)}'),
-            Text('Longitud: ${position.longitude.toStringAsFixed(6)}'),
-            Text('Precisión: ${position.accuracy.toStringAsFixed(1)}m'),
-            Text('Timestamp: ${DateTime.now().toString()}'),
+            Text('Hora: ${DateTime.now().toString().substring(0, 19)}'),
+            Text('ID: ${attendanceId.substring(0, 8)}...'),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(8),
@@ -297,12 +315,15 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle, color: Colors.green),
+                  const Icon(Icons.gps_fixed, color: Colors.green, size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'GPS capturado correctamente. Próximo: validar geofencing.',
-                      style: TextStyle(color: Colors.green.shade700),
+                      'Ubicación GPS validada correctamente',
+                      style: TextStyle(
+                        color: Colors.green.shade700,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],
@@ -318,6 +339,25 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
         ],
       ),
     );
+  }
+
+  /// Obtener mensaje de error específico para asistencia
+  String _getAttendanceErrorMessage(dynamic error) {
+    String errorStr = error.toString();
+    
+    if (errorStr.contains('fuera del perímetro')) {
+      return errorStr;
+    } else if (errorStr.contains('No se encontró registro de entrada')) {
+      return 'Debes marcar tu entrada primero antes de marcar la salida.';
+    } else if (errorStr.contains('Obra no encontrada')) {
+      return 'La obra asignada no existe. Contacta al administrador.';
+    } else if (errorStr.contains('Sin permisos de ubicación')) {
+      return 'Necesitas habilitar los permisos de ubicación para marcar asistencia.';
+    } else if (errorStr.contains('GPS')) {
+      return 'Error al obtener ubicación GPS. Verifica que esté activado.';
+    } else {
+      return 'Error al registrar asistencia: $errorStr';
+    }
   }
 
   /// Mostrar dialog de error
@@ -382,4 +422,70 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
       }
     }
   }
+  /// Mostrar resultado de prueba de ubicación
+void _showLocationResult(BuildContext context, String type, Position position) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.gps_fixed, color: AppColors.success),
+          const SizedBox(width: 8),
+          const Text('Ubicación Obtenida'),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Ubicación GPS obtenida exitosamente:'),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Coordenadas:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+                Text('Latitud: ${position.latitude.toStringAsFixed(6)}'),
+                Text('Longitud: ${position.longitude.toStringAsFixed(6)}'),
+                const SizedBox(height: 8),
+                Text(
+                  'Precisión: ${position.accuracy.toStringAsFixed(1)}m',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                Text(
+                  'Timestamp: ${DateTime.fromMillisecondsSinceEpoch(position.timestamp!.millisecondsSinceEpoch).toString().substring(0, 19)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cerrar'),
+        ),
+      ],
+    ),
+  );
+}
 }
