@@ -15,7 +15,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -44,7 +44,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: AuthWrapper(),
+        home: const AuthWrapper(),
       ),
     );
   }
@@ -66,9 +66,9 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (authService.currentUser == null) {
-          return LoginScreen();
+          return const LoginScreen();
         } else {
-          return WorkerHomeScreen();
+          return const WorkerHomeScreen();
         }
       },
     );

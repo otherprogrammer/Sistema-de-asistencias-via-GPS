@@ -6,7 +6,7 @@ import '../models/user_model.dart';
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   UserModel? _currentUser;
   bool _isLoading = true;
   String? _errorMessage;
@@ -35,9 +35,11 @@ class AuthService extends ChangeNotifier {
   /// Cargar datos del usuario desde Firestore
   Future<void> _loadUserData(String uid) async {
     try {
-      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
+      DocumentSnapshot doc =
+          await _firestore.collection('users').doc(uid).get();
       if (doc.exists) {
-        _currentUser = UserModel.fromFirestore(doc.data() as Map<String, dynamic>, uid);
+        _currentUser =
+            UserModel.fromFirestore(doc.data() as Map<String, dynamic>, uid);
       }
     } catch (e) {
       print('Error loading user data: $e');
@@ -46,141 +48,97 @@ class AuthService extends ChangeNotifier {
   }
 
   /// Login para trabajadores (DNI + Password)
-  Future<bool> loginWorker(String dni, String password) async {
-    try {
-      _isLoading = true;
-      _errorMessage = null;
-      notifyListeners();
+  /// Login para trabajadores (DNI + Password)
+Future<bool> loginWorker(String dni, String password) async {
+  try {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
 
-      // Validaciones básicas
-      if (dni.length != 8) {
-        _errorMessage = 'El DNI debe tener exactamente 8 dígitos';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      if (password.length < 6) {
-        _errorMessage = 'La contraseña debe tener al menos 6 caracteres';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      // Buscar usuario por DNI en Firestore
-      QuerySnapshot querySnapshot = await _firestore
-          .collection('users')
-          .where('dni', isEqualTo: dni)
-          .where('role', isEqualTo: 'trabajador')
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isEmpty) {
-        _errorMessage = 'DNI no registrado en el sistema';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      // Obtener datos del usuario
-      DocumentSnapshot userDoc = querySnapshot.docs.first;
-      UserModel user = UserModel.fromFirestore(
-        userDoc.data() as Map<String, dynamic>, 
-        userDoc.id
-      );
-      
-      // Verificar que el usuario esté activo
-      if (!user.isActive) {
-        _errorMessage = 'Tu cuenta está inactiva. Contacta al administrador';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      // Crear email temporal para Firebase Auth (basado en DNI)
-      String tempEmail = '${dni}@worker.temp';
-      
-      try {
-        // Intentar login con Firebase Auth
-        UserCredential result = await _auth.signInWithEmailAndPassword(
-          email: tempEmail,
-          password: password,
-        );
-
-        if (result.user != null) {
-          // Actualizar el UID en Firestore si es diferente
-          if (userDoc.id != result.user!.uid) {
-            await _firestore.collection('users').doc(result.user!.uid).set(user.toFirestore());
-            // Opcional: eliminar el documento anterior
-            // await _firestore.collection('users').doc(userDoc.id).delete();
-          }
-          
-          await _loadUserData(result.user!.uid);
-          _isLoading = false;
-          notifyListeners();
-          return true;
-        }
-      } catch (authError) {
-        // Si el usuario no existe en Firebase Auth, crearlo
-        if (authError.toString().contains('user-not-found')) {
-          try {
-            UserCredential createResult = await _auth.createUserWithEmailAndPassword(
-              email: tempEmail,
-              password: password,
-            );
-            
-            if (createResult.user != null) {
-              // Crear documento en Firestore con el UID de Firebase Auth
-              await _firestore.collection('users').doc(createResult.user!.uid).set(user.toFirestore());
-              
-              await _loadUserData(createResult.user!.uid);
-              _isLoading = false;
-              notifyListeners();
-              return true;
-            }
-          } catch (createError) {
-            _errorMessage = _handleError(createError);
-            _isLoading = false;
-            notifyListeners();
-            return false;
-          }
-        } else {
-          _errorMessage = _handleError(authError);
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
-      }
-
-      return false;
-    } catch (e) {
-      _errorMessage = _handleError(e);
+    // Validaciones básicas
+    if (dni.length != 8) {
+      _errorMessage = 'El DNI debe tener exactamente 8 dígitos';
       _isLoading = false;
       notifyListeners();
       return false;
     }
+
+    if (password.length < 6) {
+      _errorMessage = 'La contraseña debe tener al menos 6 caracteres';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+
+    // PRIMERO: Autenticarse en Firebase Auth con email/password
+    String tempEmail = '$dni@crellat.com';
+    
+    try {
+      UserCredential result = await _auth.signInWithEmailAndPassword(
+        email: tempEmail,
+        password: password,
+      );
+
+      if (result.user != null) {
+        // DESPUÉS: Cargar datos del usuario desde Firestore (ya autenticado)
+        await _loadUserData(result.user!.uid);
+        
+        // Verificar que sea trabajador activo
+        if (_currentUser?.role != 'trabajador') {
+          await signOut();
+          _errorMessage = 'No tienes permisos de trabajador';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+        
+        if (!(_currentUser?.isActive ?? false)) {
+          await signOut();
+          _errorMessage = 'Tu cuenta está inactiva. Contacta al administrador';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+        
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+    } catch (authError) {
+      _errorMessage = _handleError(authError);
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+
+    return false;
+  } catch (e) {
+    _errorMessage = _handleError(e);
+    _isLoading = false;
+    notifyListeners();
+    return false;
   }
+}
 
   /// Cambiar contraseña del usuario actual
-  Future<bool> changePassword(String currentPassword, String newPassword) async {
+  Future<bool> changePassword(
+      String currentPassword, String newPassword) async {
     if (_currentUser == null || _auth.currentUser == null) return false;
-    
+
     try {
       _isLoading = true;
       notifyListeners();
 
       // Re-autenticar al usuario
-      String tempEmail = '${_currentUser!.dni}@worker.temp';
+      String tempEmail = '${_currentUser!.dni}@crellat.com';
       AuthCredential credential = EmailAuthProvider.credential(
-        email: tempEmail, 
-        password: currentPassword
-      );
-      
+          email: tempEmail, password: currentPassword);
+
       await _auth.currentUser!.reauthenticateWithCredential(credential);
-      
+
       // Cambiar contraseña
       await _auth.currentUser!.updatePassword(newPassword);
-      
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -209,7 +167,7 @@ class AuthService extends ChangeNotifier {
   /// Obtener información completa del usuario actual
   Future<void> refreshCurrentUser() async {
     if (_auth.currentUser == null) return;
-    
+
     try {
       await _loadUserData(_auth.currentUser!.uid);
     } catch (e) {
