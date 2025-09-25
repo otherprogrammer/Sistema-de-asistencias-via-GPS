@@ -1,13 +1,11 @@
-import type { User } from 'firebase/auth';
-import LoginComponent from './components/LoginComponent';
+import { AuthProvider } from './contexts/AuthContext';
+import { AppRouter } from './router';
 import './App.css';
 
 export default function App() {
-  const handleLoginSuccess = (user: User) => {
-    console.log('Usuario logueado:', user.email);
-  };
-
-  const handleLogout = () => {};
-
-  return <LoginComponent onLoginSuccess={handleLoginSuccess} onLogout={handleLogout} />;
+  return (
+    <AuthProvider>
+      <AppRouter />
+    </AuthProvider>
+  )
 }
