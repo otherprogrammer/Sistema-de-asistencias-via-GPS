@@ -3,10 +3,12 @@ import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  // tu configuración
-  apiKey: 'tu_apiKey',
-  authDomain: 'tu_authDomain',
-  projectId: 'tu_projectId',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: 'sistema-asistencia-gps.firebaseapp.com',
+  projectId: 'sistema-asistencia-gps',
+  storageBucket: 'sistema-asistencia-gps.firebasestorage.app',
+  messagingSenderId: '211804314703',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);
