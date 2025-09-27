@@ -5,6 +5,7 @@ import '../../services/auth_service.dart';
 import '../../services/location_service.dart';
 import '../../services/attendance_service.dart';
 import '../../constants/app_colors.dart';
+import 'worker_history_screen.dart';
 
 class WorkerHomeScreen extends StatefulWidget {
   const WorkerHomeScreen({super.key});
@@ -52,7 +53,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                         Container(
                           width: 60,
                           height: 60,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             color: AppColors.primary,
                             shape: BoxShape.circle,
                           ),
@@ -74,7 +75,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                                 ),
                               ),
                               Text('DNI: ${user.dni}'),
-                              const Text(
+                              Text(
                                 'Trabajador',
                                 style: TextStyle(
                                   color: AppColors.primary,
@@ -92,18 +93,18 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                 const SizedBox(height: 32),
 
                 // Location status indicator
-                const Card(
+                Card(
                   color: AppColors.background,
                   child: Padding(
-                    padding: EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(16.0),
                     child: Row(
                       children: [
                         Icon(
                           Icons.location_on,
                           color: AppColors.primary,
                         ),
-                        SizedBox(width: 8),
-                        Text(
+                        const SizedBox(width: 8),
+                        const Text(
                           'Ubicación GPS requerida para marcar asistencia',
                           style: TextStyle(fontSize: 12),
                         ),
@@ -174,7 +175,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                   child: Column(
                     children: [
                       ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.history,
                           color: AppColors.primary,
                         ),
@@ -182,16 +183,16 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                         subtitle: const Text('Consulta tus registros de asistencia'),
                         trailing: const Icon(Icons.arrow_forward_ios),
                         onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Historial - Próximamente'),
+                            Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const WorkerHistoryScreen(),
                             ),
                           );
                         },
                       ),
                       const Divider(height: 1),
                       ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.location_searching,
                           color: AppColors.primary,
                         ),
@@ -292,7 +293,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.check_circle, color: AppColors.success),
+            Icon(Icons.check_circle, color: AppColors.success),
             const SizedBox(width: 8),
             Text('${type.toUpperCase()} Registrada'),
           ],
@@ -301,7 +302,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Tu $type ha sido registrada exitosamente.'),
+            Text('Tu ${type} ha sido registrada exitosamente.'),
             const SizedBox(height: 8),
             Text('Hora: ${DateTime.now().toString().substring(0, 19)}'),
             Text('ID: ${attendanceId.substring(0, 8)}...'),
@@ -422,7 +423,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
       }
     }
   }
-  /// Mostrar resultado de prueba de ubicación
+  // Mostrar resultado de prueba de ubicación
 void _showLocationResult(BuildContext context, String type, Position position) {
   showDialog(
     context: context,
@@ -487,5 +488,5 @@ void _showLocationResult(BuildContext context, String type, Position position) {
       ],
     ),
   );
-}
+  }
 }
