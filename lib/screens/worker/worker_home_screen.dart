@@ -18,6 +18,44 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   final LocationService _locationService = LocationService();
   final AttendanceService _attendanceService = AttendanceService();
   bool _isProcessingLocation = false;
+  bool _hasCheckedInToday = false;
+  bool _hasCheckedOutToday = false;
+  bool _isLoadingStatus = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkTodayAttendanceStatus();
+  }
+
+  
+  /// Verificar estado de asistencia de hoy
+  Future<void> _checkTodayAttendanceStatus() async {
+    setState(() {
+      _isLoadingStatus = true;
+    });
+
+    try {
+      final authService = context.read<AuthService>();
+      final user = authService.currentUser;
+      
+      if (user != null) {
+        bool hasCheckIn = await _attendanceService.hasCheckedInToday(user.uid);
+        bool hasCheckOut = await _attendanceService.hasCheckedOutToday(user.uid);
+        
+        setState(() {
+          _hasCheckedInToday = hasCheckIn;
+          _hasCheckedOutToday = hasCheckOut;
+          _isLoadingStatus = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking attendance status: $e');
+      setState(() {
+        _isLoadingStatus = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,22 +130,30 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
 
                 const SizedBox(height: 32),
 
-                // Location status indicator
+                // Location status indicator con estado de asistencia
                 Card(
                   color: AppColors.background,
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Row(
+                    child: Column(
                       children: [
-                        Icon(
-                          Icons.location_on,
-                          color: AppColors.primary,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Ubicación GPS requerida para marcar asistencia',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Ubicación GPS requerida para marcar asistencia',
-                          style: TextStyle(fontSize: 12),
-                        ),
+                        if (!_isLoadingStatus) ...[
+                          const SizedBox(height: 8),
+                          _buildAttendanceStatus(),
+                        ],
                       ],
                     ),
                   ),
@@ -115,12 +161,12 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
 
                 const SizedBox(height: 24),
 
-                // Check-in/out buttons
+                // Check-in/out buttons con validaciones
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: _isProcessingLocation 
+                        onPressed: (_isProcessingLocation || _isLoadingStatus || _hasCheckedInToday) 
                             ? null 
                             : () => _handleMarkAttendance(context, 'entrada'),
                         icon: _isProcessingLocation 
@@ -129,11 +175,11 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                                 height: 16,
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : const Icon(Icons.login),
-                        label: const Text('Marcar\nEntrada'),
+                            : Icon(_hasCheckedInToday ? Icons.check : Icons.login),
+                        label: Text(_hasCheckedInToday ? 'Entrada\nRegistrada' : 'Marcar\nEntrada'),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.all(24),
-                          backgroundColor: AppColors.success,
+                          backgroundColor: _hasCheckedInToday ? Colors.grey : AppColors.success,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -144,7 +190,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: _isProcessingLocation 
+                        onPressed: (_isProcessingLocation || _isLoadingStatus || _hasCheckedOutToday) 
                             ? null 
                             : () => _handleMarkAttendance(context, 'salida'),
                         icon: _isProcessingLocation 
@@ -153,11 +199,11 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                                 height: 16,
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : const Icon(Icons.logout),
-                        label: const Text('Marcar\nSalida'),
+                            : Icon(_hasCheckedOutToday ? Icons.check : Icons.logout),
+                        label: Text(_hasCheckedOutToday ? 'Salida\nRegistrada' : 'Marcar\nSalida'),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.all(24),
-                          backgroundColor: AppColors.error,
+                          backgroundColor: _hasCheckedOutToday ? Colors.grey : AppColors.error,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -183,7 +229,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                         subtitle: const Text('Consulta tus registros de asistencia'),
                         trailing: const Icon(Icons.arrow_forward_ios),
                         onTap: () {
-                            Navigator.of(context).push(
+                          Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (context) => const WorkerHistoryScreen(),
                             ),
@@ -212,6 +258,49 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     );
   }
 
+  /// Construir indicador de estado de asistencia
+  Widget _buildAttendanceStatus() {
+    if (_isLoadingStatus) {
+      return const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1)),
+          SizedBox(width: 8),
+          Text('Verificando estado...', style: TextStyle(fontSize: 12)),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        _buildStatusIndicator('Entrada', _hasCheckedInToday),
+        const SizedBox(width: 16),
+        _buildStatusIndicator('Salida', _hasCheckedOutToday),
+      ],
+    );
+  }
+
+  Widget _buildStatusIndicator(String label, bool isCompleted) {
+    return Row(
+      children: [
+        Icon(
+          isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+          color: isCompleted ? AppColors.success : AppColors.textSecondary,
+          size: 16,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: isCompleted ? AppColors.success : AppColors.textSecondary,
+            fontWeight: isCompleted ? FontWeight.w500 : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
+  }
+
   /// Manejar marcado de asistencia (entrada o salida)
   Future<void> _handleMarkAttendance(BuildContext context, String type) async {
     if (_isProcessingLocation) return;
@@ -222,6 +311,26 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     if (user == null || user.assignedWorksiteId == null) {
       _showErrorDialog(context, 'Usuario o obra no válidos');
       return;
+    }
+
+    // Validaciones antes de proceder
+    if (type == 'entrada' && _hasCheckedInToday) {
+      _showWarningDialog(context, 'Ya registraste tu entrada hoy', 
+          'Solo puedes marcar una entrada por día. Tu entrada de hoy ya está registrada.');
+      return;
+    }
+
+    if (type == 'salida') {
+      if (!_hasCheckedInToday) {
+        _showWarningDialog(context, 'Debes marcar entrada primero', 
+            'No puedes marcar salida sin haber marcado entrada primero.');
+        return;
+      }
+      if (_hasCheckedOutToday) {
+        _showWarningDialog(context, 'Ya registraste tu salida hoy', 
+            'Solo puedes marcar una salida por día. Tu salida de hoy ya está registrada.');
+        return;
+      }
     }
 
     setState(() {
@@ -264,6 +373,15 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
         Navigator.of(context).pop();
       }
 
+      // Actualizar estado después del registro exitoso
+      setState(() {
+        if (type == 'entrada') {
+          _hasCheckedInToday = true;
+        } else {
+          _hasCheckedOutToday = true;
+        }
+      });
+
       // Mostrar éxito
       if (context.mounted) {
         _showSuccessDialog(context, type, attendanceId);
@@ -284,6 +402,29 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
         _isProcessingLocation = false;
       });
     }
+  }
+
+  /// Mostrar dialog de advertencia
+  void _showWarningDialog(BuildContext context, String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: AppColors.warning),
+            const SizedBox(width: 8),
+            Text(title),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Mostrar dialog de éxito
@@ -423,70 +564,71 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
       }
     }
   }
-  // Mostrar resultado de prueba de ubicación
-void _showLocationResult(BuildContext context, String type, Position position) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Row(
-        children: [
-          Icon(Icons.gps_fixed, color: AppColors.success),
-          SizedBox(width: 8),
-          Text('Ubicación Obtenida'),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Ubicación GPS obtenida exitosamente:'),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.shade200),
+
+  /// Mostrar resultado de prueba de ubicación
+  void _showLocationResult(BuildContext context, String type, Position position) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.gps_fixed, color: AppColors.success),
+            SizedBox(width: 8),
+            Text('Ubicación Obtenida'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Ubicación GPS obtenida exitosamente:'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Coordenadas:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                  Text('Latitud: ${position.latitude.toStringAsFixed(6)}'),
+                  Text('Longitud: ${position.longitude.toStringAsFixed(6)}'),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Precisión: ${position.accuracy.toStringAsFixed(1)}m',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  Text(
+                    'Timestamp: ${DateTime.fromMillisecondsSinceEpoch(position.timestamp.millisecondsSinceEpoch).toString().substring(0, 19)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Coordenadas:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade700,
-                  ),
-                ),
-                Text('Latitud: ${position.latitude.toStringAsFixed(6)}'),
-                Text('Longitud: ${position.longitude.toStringAsFixed(6)}'),
-                const SizedBox(height: 8),
-                Text(
-                  'Precisión: ${position.accuracy.toStringAsFixed(1)}m',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                Text(
-                  'Timestamp: ${DateTime.fromMillisecondsSinceEpoch(position.timestamp.millisecondsSinceEpoch).toString().substring(0, 19)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cerrar'),
-        ),
-      ],
-    ),
-  );
+    );
   }
 }
