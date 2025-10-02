@@ -13,7 +13,7 @@ const LoginPage: React.FC = () => {
   const location = useLocation();
 
   // Obtener la página desde donde vino (si fue redirigido)
-  const from = (location.state as any)?.from?.pathname || '/dashboard';
+  const from = location.state?.from?.pathname || '/gestion-trabajadoress';
 
   const handleLogin = async () => {
     if (!email || !password) return;
@@ -32,34 +32,38 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      backgroundColor: '#f5f5f5'
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        padding: '40px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        width: '100%',
-        maxWidth: '400px'
-      }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '30px' }}>
-          Iniciar Sesión
-        </h2>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: '#f5f5f5',
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: 'white',
+          padding: '40px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+          width: '100%',
+          maxWidth: '400px',
+        }}
+      >
+        <h2 style={{ textAlign: 'center', marginBottom: '30px' }}>Iniciar Sesión</h2>
 
         {error && (
-          <div style={{
-            color: '#e74c3c',
-            backgroundColor: '#fadbd8',
-            padding: '10px',
-            borderRadius: '4px',
-            marginBottom: '20px',
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              color: '#e74c3c',
+              backgroundColor: '#fadbd8',
+              padding: '10px',
+              borderRadius: '4px',
+              marginBottom: '20px',
+              textAlign: 'center',
+            }}
+          >
             {error}
           </div>
         )}
@@ -75,7 +79,7 @@ const LoginPage: React.FC = () => {
               padding: '12px',
               border: '1px solid #ddd',
               borderRadius: '4px',
-              fontSize: '16px'
+              fontSize: '16px',
             }}
           />
         </div>
@@ -92,7 +96,7 @@ const LoginPage: React.FC = () => {
               padding: '12px',
               border: '1px solid #ddd',
               borderRadius: '4px',
-              fontSize: '16px'
+              fontSize: '16px',
             }}
           />
         </div>
@@ -108,7 +112,7 @@ const LoginPage: React.FC = () => {
             border: 'none',
             borderRadius: '4px',
             fontSize: '16px',
-            cursor: loading ? 'not-allowed' : 'pointer'
+            cursor: loading ? 'not-allowed' : 'pointer',
           }}
         >
           {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
