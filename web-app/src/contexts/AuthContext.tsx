@@ -1,10 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import {
-  type User,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut
-} from 'firebase/auth';
+import { type User, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase.config';
 import type { UserData } from '../types';
@@ -31,7 +26,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState<boolean>(true);
 
   // Verificar rol de administrador
-  const checkAdminRole = async (uid: string): Promise<{ isAdmin: boolean; userData: UserData | null }> => {
+  const checkAdminRole = async (
+    uid: string,
+  ): Promise<{ isAdmin: boolean; userData: UserData | null }> => {
     try {
       const userDoc = await getDoc(doc(db, 'users', uid));
 
@@ -41,25 +38,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         return {
           isAdmin: isAdminUser,
-          userData: data
+          userData: data,
         };
       } else {
         return {
           isAdmin: false,
-          userData: null
+          userData: null,
         };
       }
     } catch (error) {
       console.error('Error verificando rol:', error);
       return {
         isAdmin: false,
-        userData: null
+        userData: null,
       };
     }
   };
 
   // Función de login
-   const login = async (email: string, password: string): Promise<void> => {
+  const login = async (email: string, password: string): Promise<void> => {
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       const { isAdmin: adminStatus } = await checkAdminRole(result.user.uid);
@@ -68,7 +65,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await signOut(auth);
         throw new Error('Acceso denegado. Solo administradores pueden acceder.');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error en login:', error);
       throw error;
     }
@@ -84,30 +81,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Listener de cambios de autenticación
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         // Usuario está autenticado, verificar rol
-        const { isAdmin: adminStatus, userData: userDataFromDb } = await checkAdminRole(firebaseUser.uid);
-
-        if (adminStatus && userDataFromDb) {
-          console.log('Usuario es admin, configurando estado...');
-          setUser(firebaseUser);
-          setUserData(userDataFromDb);
-          setIsAdmin(true);
-        } else {
-          console.log('Usuario no es admin o sin datos, limpiando estado...');
-          setUser(null);
-          setUserData(null);
-          setIsAdmin(false);
-          // NO hacer signOut aquí porque crearía un bucle
-        }
-      } else {
-        // No hay usuario autenticado
-        setUser(null);
-        setUserData(null);
-        setIsAdmin(false);
+        checkAdminRole(firebaseUser.uid)
+          .then(({ isAdmin, userData }) => {
+            if (isAdmin && userData) {
+              setUser(firebaseUser);
+              setUserData(userData);
+              setIsAdmin(true);
+            } else {
+              setUser(null);
+              setUserData(null);
+              setIsAdmin(false);
+              // NO hacer signOut aquí porque crearía un bucle
+            }
+          })
+          .catch((error) => {
+            console.error('Error en onAuthStateChanged:', error);
+            setUser(null);
+            setUserData(null);
+            setIsAdmin(false);
+          });
       }
-
       setLoading(false);
     });
 
@@ -120,14 +116,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAdmin,
     loading,
     login,
-    logout
+    logout,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = (): AuthContextType => {
