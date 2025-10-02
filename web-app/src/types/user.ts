@@ -6,4 +6,14 @@ export interface UserData {
   fullName: string;
   assignedWorksiteId: string | null;
   isActive: boolean;
+  /* createdAt: FieldValue;
+  updatedAt: FieldValue; */
+}
+
+export interface CreateWorkerData {
+  email: string;
+  password: string;
+  dni: string;
+  fullName: string;
+  role?: string;
 }
