@@ -121,34 +121,38 @@ Future<bool> loginWorker(String dni, String password) async {
 }
 
   /// Cambiar contraseña del usuario actual
-  Future<bool> changePassword(
-      String currentPassword, String newPassword) async {
-    if (_currentUser == null || _auth.currentUser == null) return false;
+  Future<bool> changePassword(String currentPassword, String newPassword) async {
+  if (_currentUser == null || _auth.currentUser == null) return false;
+  
+  try {
+    _isLoading = true;
+    notifyListeners();
 
-    try {
-      _isLoading = true;
-      notifyListeners();
-
-      // Re-autenticar al usuario
-      String tempEmail = '${_currentUser!.dni}@crellat.com';
-      AuthCredential credential = EmailAuthProvider.credential(
-          email: tempEmail, password: currentPassword);
-
-      await _auth.currentUser!.reauthenticateWithCredential(credential);
-
-      // Cambiar contraseña
-      await _auth.currentUser!.updatePassword(newPassword);
-
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Error al cambiar contraseña: ${_handleError(e)}';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
+    // Re-autenticar al usuario
+    String tempEmail = '${_currentUser!.dni}@crellat.com';
+    AuthCredential credential = EmailAuthProvider.credential(
+      email: tempEmail, 
+      password: currentPassword
+    );
+    
+    await _auth.currentUser!.reauthenticateWithCredential(credential);
+    
+    // Cambiar contraseña
+    await _auth.currentUser!.updatePassword(newPassword);
+    
+    // NUEVO: Marcar que ya cambió la contraseña
+    await markPasswordChanged();
+    
+    _isLoading = false;
+    notifyListeners();
+    return true;
+  } catch (e) {
+    _errorMessage = 'Error al cambiar contraseña: ${_handleError(e)}';
+    _isLoading = false;
+    notifyListeners();
+    return false;
   }
+}
 
   /// Cerrar sesión
   Future<void> signOut() async {
@@ -230,5 +234,14 @@ Future<bool> loginWorker(String dni, String password) async {
       print('Puede ver historial: $canViewHistory');
       print('========================');
     }
+  }
+  Future<void> markPasswordChanged() async {
+    if (_auth.currentUser == null) return;
+    
+    await _firestore.collection('users').doc(_auth.currentUser!.uid).update({
+      'hasChangedPassword': true,
+    });
+    
+    await refreshCurrentUser();
   }
 }

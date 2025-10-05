@@ -6,6 +6,8 @@ class UserModel {
   final String fullName;
   final String? assignedWorksiteId;
   final bool isActive;
+  final bool hasChangedPassword; // Nuevo campo
+  final bool hasSelectedWorksite; // Nuevo campo
 
   UserModel({
     required this.uid,
@@ -15,6 +17,8 @@ class UserModel {
     required this.fullName,
     this.assignedWorksiteId,
     this.isActive = true,
+    this.hasChangedPassword = false,
+    this.hasSelectedWorksite = false,
   });
 
   factory UserModel.fromFirestore(Map<String, dynamic> data, String uid) {
@@ -26,6 +30,8 @@ class UserModel {
       fullName: data['fullName'] ?? '',
       assignedWorksiteId: data['assignedWorksiteId'],
       isActive: data['isActive'] ?? true,
+      hasChangedPassword: data['hasChangedPassword'] ?? false,
+      hasSelectedWorksite: data['hasSelectedWorksite'] ?? false,
     );
   }
 
@@ -37,6 +43,8 @@ class UserModel {
       'fullName': fullName,
       'assignedWorksiteId': assignedWorksiteId,
       'isActive': isActive,
+      'hasChangedPassword': hasChangedPassword,
+      'hasSelectedWorksite': hasSelectedWorksite,
     };
   }
 

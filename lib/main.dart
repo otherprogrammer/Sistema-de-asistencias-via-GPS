@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_gps/screens/worker/change_password_screen.dart';
+import 'package:flutter_gps/screens/worker/select_worksite_screen.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'screens/login/login_screen.dart';
@@ -44,7 +46,12 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const AuthWrapper(),
+        routes: {
+          '/': (context) => const AuthWrapper(),
+          '/change-password': (context) => const ChangePasswordScreen(isFirstTime: true),
+          '/select-worksite': (context) => const SelectWorksiteScreen(),
+          '/home': (context) => const WorkerHomeScreen(),
+        },
       ),
     );
   }
@@ -67,9 +74,25 @@ class AuthWrapper extends StatelessWidget {
 
         if (authService.currentUser == null) {
           return const LoginScreen();
-        } else {
-          return const WorkerHomeScreen();
         }
+
+        final user = authService.currentUser!;
+
+        // Verificar si es trabajador y necesita primer setup
+        if (user.role == 'trabajador') {
+          // Si no ha cambiado contraseña, ir a cambio obligatorio
+          if (!user.hasChangedPassword) {
+            return const ChangePasswordScreen(isFirstTime: true);
+          }
+          
+          // Si no ha seleccionado obra, ir a selección
+          if (!user.hasSelectedWorksite || user.assignedWorksiteId == null) {
+            return const SelectWorksiteScreen();
+          }
+        }
+
+        // Si ya completó setup o es admin, ir a home
+        return const WorkerHomeScreen();
       },
     );
   }
