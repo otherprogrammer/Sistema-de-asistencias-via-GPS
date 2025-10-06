@@ -33,10 +33,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: !widget.isFirstTime, // No permitir retroceder si es primera vez
+      canPop: !widget.isFirstTime,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.isFirstTime ? 'Cambiar Contraseña' : 'Cambiar Contraseña'),
+          title: const Text('Cambiar Contraseña'),
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.textOnPrimary,
           automaticallyImplyLeading: !widget.isFirstTime,
@@ -56,11 +56,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: AppColors.warning),
                     ),
-                    child: Column(
+                    child: const Column(
                       children: [
                         Icon(Icons.security, color: AppColors.warning, size: 48),
-                        const SizedBox(height: 12),
-                        const Text(
+                        SizedBox(height: 12),
+                        Text(
                           'Seguridad de tu cuenta',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
@@ -68,7 +68,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         Text(
                           'Por seguridad, debes cambiar tu contraseña temporal antes de continuar.',
                           style: TextStyle(color: AppColors.textSecondary),
@@ -80,7 +80,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   const SizedBox(height: 32),
                 ],
 
-                // Contraseña actual
                 TextFormField(
                   controller: _currentPasswordController,
                   decoration: InputDecoration(
@@ -111,7 +110,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Nueva contraseña
                 TextFormField(
                   controller: _newPasswordController,
                   decoration: InputDecoration(
@@ -148,7 +146,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Confirmar contraseña
                 TextFormField(
                   controller: _confirmPasswordController,
                   decoration: InputDecoration(
@@ -182,7 +179,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Botón de cambiar contraseña
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
@@ -235,30 +231,54 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     try {
       final authService = context.read<AuthService>();
       
+      print('🔐 Iniciando cambio de contraseña...');
+      
       bool success = await authService.changePassword(
         _currentPasswordController.text,
         _newPasswordController.text,
       );
 
-      if (mounted) {
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Contraseña cambiada exitosamente'),
-              backgroundColor: AppColors.success,
-            ),
-          );
+      print('🔐 Cambio de contraseña: ${success ? "EXITOSO" : "FALLIDO"}');
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Contraseña cambiada exitosamente'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        
+        if (widget.isFirstTime) {
+          print('🔐 Primera vez - Refrescando usuario...');
           
-          if (widget.isFirstTime) {
-            // Si es primera vez, continuar al siguiente paso
-            Navigator.of(context).pushReplacementNamed('/select-worksite');
-          } else {
-            // Si no es primera vez, volver atrás
-            Navigator.of(context).pop();
-          }
+          // Esperar un momento para asegurar que Firestore se actualice
+          await Future.delayed(const Duration(milliseconds: 500));
+          
+          // Refrescar usuario
+          await authService.refreshCurrentUser();
+          
+          print('🔐 Usuario refrescado. hasChangedPassword: ${authService.currentUser?.hasChangedPassword}');
+          
+          if (!mounted) return;
+          
+          // Navegar a home - AuthWrapper se encargará de redirigir
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+        } else {
+          Navigator.of(context).pop();
         }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authService.errorMessage ?? 'Error al cambiar contraseña'),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
     } catch (e) {
+      print('❌ Error en _handleChangePassword: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

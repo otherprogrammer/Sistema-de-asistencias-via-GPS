@@ -124,11 +124,11 @@ class _SelectWorksiteScreenState extends State<SelectWorksiteScreen> {
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: AppColors.primary),
                               ),
-                              child: Column(
+                              child: const Column(
                                 children: [
                                   Icon(Icons.location_city, color: AppColors.primary, size: 48),
-                                  const SizedBox(height: 12),
-                                  const Text(
+                                  SizedBox(height: 12),
+                                  Text(
                                     'Selecciona tu obra',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
@@ -136,7 +136,7 @@ class _SelectWorksiteScreenState extends State<SelectWorksiteScreen> {
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
-                                  const SizedBox(height: 8),
+                                  SizedBox(height: 8),
                                   Text(
                                     'Elige la obra donde trabajarás. Esta selección es permanente y solo puede ser modificada por el administrador.',
                                     style: TextStyle(color: AppColors.textSecondary),
@@ -250,7 +250,7 @@ class _SelectWorksiteScreenState extends State<SelectWorksiteScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Radio: ${worksite.radius.toStringAsFixed(0)}m',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
                       ),
@@ -259,7 +259,7 @@ class _SelectWorksiteScreenState extends State<SelectWorksiteScreen> {
                 ),
               ),
               if (isSelected)
-                Icon(
+                const Icon(
                   Icons.check_circle,
                   color: AppColors.primary,
                   size: 28,

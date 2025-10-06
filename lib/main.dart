@@ -73,25 +73,35 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (authService.currentUser == null) {
+          print('🚪 No hay usuario - Mostrando LoginScreen');
           return const LoginScreen();
         }
 
         final user = authService.currentUser!;
+        print('👤 Usuario actual: ${user.fullName}');
 
         // Verificar si es trabajador y necesita primer setup
         if (user.role == 'trabajador') {
+          print('👷 Rol: trabajador');
+          print('   - hasChangedPassword: ${user.hasChangedPassword}');
+          print('   - hasSelectedWorksite: ${user.hasSelectedWorksite}');
+          print('   - assignedWorksiteId: ${user.assignedWorksiteId}');
+          
           // Si no ha cambiado contraseña, ir a cambio obligatorio
           if (!user.hasChangedPassword) {
+            print('🔐 Redirigiendo a ChangePasswordScreen (obligatorio)');
             return const ChangePasswordScreen(isFirstTime: true);
           }
           
           // Si no ha seleccionado obra, ir a selección
           if (!user.hasSelectedWorksite || user.assignedWorksiteId == null) {
+            print('🏗️ Redirigiendo a SelectWorksiteScreen');
             return const SelectWorksiteScreen();
           }
         }
 
         // Si ya completó setup o es admin, ir a home
+        print('✅ Setup completo - Mostrando WorkerHomeScreen');
         return const WorkerHomeScreen();
       },
     );

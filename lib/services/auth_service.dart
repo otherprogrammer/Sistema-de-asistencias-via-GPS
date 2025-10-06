@@ -35,124 +35,140 @@ class AuthService extends ChangeNotifier {
   /// Cargar datos del usuario desde Firestore
   Future<void> _loadUserData(String uid) async {
     try {
-      DocumentSnapshot doc =
-          await _firestore.collection('users').doc(uid).get();
+      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
       if (doc.exists) {
-        _currentUser =
-            UserModel.fromFirestore(doc.data() as Map<String, dynamic>, uid);
+        _currentUser = UserModel.fromFirestore(doc.data() as Map<String, dynamic>, uid);
+        print('📥 Usuario cargado: ${_currentUser!.fullName} - hasChangedPassword: ${_currentUser!.hasChangedPassword}');
       }
     } catch (e) {
-      print('Error loading user data: $e');
+      print('❌ Error loading user data: $e');
       _errorMessage = 'Error al cargar datos del usuario';
     }
   }
 
   /// Login para trabajadores (DNI + Password)
-  /// Login para trabajadores (DNI + Password)
-Future<bool> loginWorker(String dni, String password) async {
-  try {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    // Validaciones básicas
-    if (dni.length != 8) {
-      _errorMessage = 'El DNI debe tener exactamente 8 dígitos';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-
-    if (password.length < 6) {
-      _errorMessage = 'La contraseña debe tener al menos 6 caracteres';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-
-    // PRIMERO: Autenticarse en Firebase Auth con email/password
-    String tempEmail = '$dni@crellat.com';
-    
+  Future<bool> loginWorker(String dni, String password) async {
     try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: tempEmail,
-        password: password,
-      );
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
 
-      if (result.user != null) {
-        // DESPUÉS: Cargar datos del usuario desde Firestore (ya autenticado)
-        await _loadUserData(result.user!.uid);
-        
-        // Verificar que sea trabajador activo
-        if (_currentUser?.role != 'trabajador') {
-          await signOut();
-          _errorMessage = 'No tienes permisos de trabajador';
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
-        
-        if (!(_currentUser?.isActive ?? false)) {
-          await signOut();
-          _errorMessage = 'Tu cuenta está inactiva. Contacta al administrador';
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
-        
+      // Validaciones básicas
+      if (dni.length != 8) {
+        _errorMessage = 'El DNI debe tener exactamente 8 dígitos';
         _isLoading = false;
         notifyListeners();
-        return true;
+        return false;
       }
-    } catch (authError) {
-      _errorMessage = _handleError(authError);
+
+      if (password.length < 6) {
+        _errorMessage = 'La contraseña debe tener al menos 6 caracteres';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      // PRIMERO: Autenticarse en Firebase Auth con email/password
+      String tempEmail = '$dni@crellat.com';
+      
+      try {
+        UserCredential result = await _auth.signInWithEmailAndPassword(
+          email: tempEmail,
+          password: password,
+        );
+
+        if (result.user != null) {
+          // DESPUÉS: Cargar datos del usuario desde Firestore (ya autenticado)
+          await _loadUserData(result.user!.uid);
+          
+          // Verificar que sea trabajador activo
+          if (_currentUser?.role != 'trabajador') {
+            await signOut();
+            _errorMessage = 'No tienes permisos de trabajador';
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+          
+          if (!(_currentUser?.isActive ?? false)) {
+            await signOut();
+            _errorMessage = 'Tu cuenta está inactiva. Contacta al administrador';
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+          
+          _isLoading = false;
+          notifyListeners();
+          return true;
+        }
+      } catch (authError) {
+        _errorMessage = _handleError(authError);
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      return false;
+    } catch (e) {
+      _errorMessage = _handleError(e);
       _isLoading = false;
       notifyListeners();
       return false;
     }
-
-    return false;
-  } catch (e) {
-    _errorMessage = _handleError(e);
-    _isLoading = false;
-    notifyListeners();
-    return false;
   }
-}
 
   /// Cambiar contraseña del usuario actual
   Future<bool> changePassword(String currentPassword, String newPassword) async {
-  if (_currentUser == null || _auth.currentUser == null) return false;
-  
-  try {
-    _isLoading = true;
-    notifyListeners();
+    if (_currentUser == null || _auth.currentUser == null) {
+      _errorMessage = 'No hay usuario autenticado';
+      return false;
+    }
+    
+    try {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
 
-    // Re-autenticar al usuario
-    String tempEmail = '${_currentUser!.dni}@crellat.com';
-    AuthCredential credential = EmailAuthProvider.credential(
-      email: tempEmail, 
-      password: currentPassword
-    );
-    
-    await _auth.currentUser!.reauthenticateWithCredential(credential);
-    
-    // Cambiar contraseña
-    await _auth.currentUser!.updatePassword(newPassword);
-    
-    // NUEVO: Marcar que ya cambió la contraseña
-    await markPasswordChanged();
-    
-    _isLoading = false;
-    notifyListeners();
-    return true;
-  } catch (e) {
-    _errorMessage = 'Error al cambiar contraseña: ${_handleError(e)}';
-    _isLoading = false;
-    notifyListeners();
-    return false;
+      print('🔐 Iniciando cambio de contraseña para: ${_currentUser!.dni}');
+
+      String tempEmail = '${_currentUser!.dni}@crellat.com';
+      AuthCredential credential = EmailAuthProvider.credential(
+        email: tempEmail, 
+        password: currentPassword
+      );
+      
+      // Reautenticar
+      print('🔐 Reautenticando...');
+      await _auth.currentUser!.reauthenticateWithCredential(credential);
+      
+      // Cambiar contraseña
+      print('🔐 Actualizando contraseña...');
+      await _auth.currentUser!.updatePassword(newPassword);
+      
+      // CRÍTICO: Actualizar el flag en Firestore
+      print('🔐 Actualizando flag en Firestore...');
+      await _firestore.collection('users').doc(_auth.currentUser!.uid).update({
+        'hasChangedPassword': true,
+      });
+      
+      // Recargar datos del usuario inmediatamente
+      print('🔐 Recargando datos del usuario...');
+      await _loadUserData(_auth.currentUser!.uid);
+      
+      print('✅ Contraseña cambiada exitosamente. hasChangedPassword: ${_currentUser?.hasChangedPassword}');
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print('❌ Error en changePassword: $e');
+      _errorMessage = 'Error al cambiar contraseña: ${_handleError(e)}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
-}
 
   /// Cerrar sesión
   Future<void> signOut() async {
@@ -173,9 +189,12 @@ Future<bool> loginWorker(String dni, String password) async {
     if (_auth.currentUser == null) return;
 
     try {
+      print('🔄 Refrescando datos del usuario...');
       await _loadUserData(_auth.currentUser!.uid);
+      notifyListeners(); // IMPORTANTE: Notificar cambios
+      print('✅ Usuario refrescado exitosamente');
     } catch (e) {
-      print('Error refreshing user data: $e');
+      print('❌ Error refreshing user data: $e');
     }
   }
 
@@ -207,6 +226,10 @@ Future<bool> loginWorker(String dni, String password) async {
           return 'Error de conexión. Verifica tu internet';
         case 'email-already-in-use':
           return 'Este DNI ya está registrado';
+        case 'requires-recent-login':
+          return 'Por seguridad, vuelve a iniciar sesión';
+        case 'weak-password':
+          return 'La contraseña es muy débil';
         default:
           return 'Error de autenticación: ${error.message}';
       }
@@ -229,19 +252,12 @@ Future<bool> loginWorker(String dni, String password) async {
       print('DNI: ${_currentUser!.dni}');
       print('Obra asignada: ${_currentUser!.assignedWorksiteId}');
       print('Activo: ${_currentUser!.isActive}');
+      print('hasChangedPassword: ${_currentUser!.hasChangedPassword}');
+      print('hasSelectedWorksite: ${_currentUser!.hasSelectedWorksite}');
       print('Firebase User: ${_auth.currentUser?.email}');
       print('Puede marcar asistencia: $canMarkAttendance');
       print('Puede ver historial: $canViewHistory');
       print('========================');
     }
-  }
-  Future<void> markPasswordChanged() async {
-    if (_auth.currentUser == null) return;
-    
-    await _firestore.collection('users').doc(_auth.currentUser!.uid).update({
-      'hasChangedPassword': true,
-    });
-    
-    await refreshCurrentUser();
   }
 }
