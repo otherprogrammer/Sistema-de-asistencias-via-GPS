@@ -6,6 +6,7 @@ import '../../services/location_service.dart';
 import '../../services/attendance_service.dart';
 import '../../constants/app_colors.dart';
 import 'worker_history_screen.dart';
+import 'change_password_screen.dart';
 
 class WorkerHomeScreen extends StatefulWidget {
   const WorkerHomeScreen({super.key});
@@ -68,7 +69,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
-              context.read<AuthService>().signOut();
+              _showLogoutConfirmation(context);
             },
           ),
         ],
@@ -227,11 +228,28 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                         ),
                         title: const Text('Ver Historial'),
                         subtitle: const Text('Consulta tus registros de asistencia'),
-                        trailing: const Icon(Icons.arrow_forward_ios),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (context) => const WorkerHistoryScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.lock_reset,
+                          color: AppColors.primary,
+                        ),
+                        title: const Text('Cambiar Contraseña'),
+                        subtitle: const Text('Actualiza tu contraseña de acceso'),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const ChangePasswordScreen(isFirstTime: false),
                             ),
                           );
                         },
@@ -244,7 +262,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                         ),
                         title: const Text('Probar Ubicación'),
                         subtitle: const Text('Verificar GPS y permisos'),
-                        trailing: const Icon(Icons.arrow_forward_ios),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () => _testLocation(context),
                       ),
                     ],
@@ -298,6 +316,39 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Mostrar confirmación de cierre de sesión
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.logout, color: AppColors.error),
+            SizedBox(width: 8),
+            Text('Cerrar Sesión'),
+          ],
+        ),
+        content: const Text('¿Estás seguro que deseas cerrar sesión?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.read<AuthService>().signOut();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.error,
+            ),
+            child: const Text('Cerrar Sesión'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -413,7 +464,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
           children: [
             const Icon(Icons.warning, color: AppColors.warning),
             const SizedBox(width: 8),
-            Text(title),
+            Expanded(child: Text(title)),
           ],
         ),
         content: Text(message),

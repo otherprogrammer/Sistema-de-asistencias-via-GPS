@@ -31,32 +31,44 @@ class AttendanceService {
         radiusMeters: worksite.radius,
       );
 
-      // Crear registro de entrada
+      double distance = _locationService.calculateDistance(
+        lat1: position.latitude,
+        lon1: position.longitude,
+        lat2: worksite.latitude,
+        lon2: worksite.longitude,
+      );
+
+      // Crear registro del intento (válido o no)
       PunchRecord punchIn = PunchRecord(
         timestamp: DateTime.now(),
         location: GeoPoint(position.latitude, position.longitude),
         isValid: isWithinWorksite,
       );
 
-      // Buscar o crear documento de asistencia para hoy
+      // SI NO ESTÁ DENTRO: Guardar intento fallido
+      if (!isWithinWorksite) {
+        await _recordFailedCheckInAttempt(
+          workerId: workerId,
+          worksiteId: worksiteId,
+          punchIn: punchIn,
+          distance: distance,
+          allowedRadius: worksite.radius,
+        );
+
+        throw Exception(
+          'Estás fuera del perímetro permitido para esta obra. '
+          'Distancia: ${distance.toStringAsFixed(0)}m, '
+          'Permitido: ${worksite.radius.toStringAsFixed(0)}m. '
+          'Intento registrado como "Intento Fallido".'
+        );
+      }
+
+      // SI ESTÁ DENTRO: Crear documento de asistencia exitosa
       String attendanceId = await _getOrCreateTodayAttendance(
         workerId: workerId,
         worksiteId: worksiteId,
         punchIn: punchIn,
       );
-
-      if (!isWithinWorksite) {
-        throw Exception(
-          'Estás fuera del perímetro permitido para esta obra. '
-          'Distancia: ${_locationService.calculateDistance(
-            lat1: position.latitude,
-            lon1: position.longitude,
-            lat2: worksite.latitude,
-            lon2: worksite.longitude,
-          ).toStringAsFixed(0)}m, '
-          'Permitido: ${worksite.radius.toStringAsFixed(0)}m'
-        );
-      }
 
       return attendanceId;
     } catch (e) {
@@ -88,32 +100,44 @@ class AttendanceService {
         radiusMeters: worksite.radius,
       );
 
-      // Crear registro de salida
+      double distance = _locationService.calculateDistance(
+        lat1: position.latitude,
+        lon1: position.longitude,
+        lat2: worksite.latitude,
+        lon2: worksite.longitude,
+      );
+
+      // Crear registro del intento (válido o no)
       PunchRecord punchOut = PunchRecord(
         timestamp: DateTime.now(),
         location: GeoPoint(position.latitude, position.longitude),
         isValid: isWithinWorksite,
       );
 
-      // Actualizar documento de asistencia de hoy
+      // SI NO ESTÁ DENTRO: Guardar intento fallido de salida
+      if (!isWithinWorksite) {
+        await _recordFailedCheckOutAttempt(
+          workerId: workerId,
+          worksiteId: worksiteId,
+          punchOut: punchOut,
+          distance: distance,
+          allowedRadius: worksite.radius,
+        );
+
+        throw Exception(
+          'Estás fuera del perímetro permitido para esta obra. '
+          'Distancia: ${distance.toStringAsFixed(0)}m, '
+          'Permitido: ${worksite.radius.toStringAsFixed(0)}m. '
+          'Intento registrado como "Intento Fallido".'
+        );
+      }
+
+      // SI ESTÁ DENTRO: Actualizar documento de asistencia exitosa
       String attendanceId = await _updateTodayAttendance(
         workerId: workerId,
         worksiteId: worksiteId,
         punchOut: punchOut,
       );
-
-      if (!isWithinWorksite) {
-        throw Exception(
-          'Estás fuera del perímetro permitido para esta obra. '
-          'Distancia: ${_locationService.calculateDistance(
-            lat1: position.latitude,
-            lon1: position.longitude,
-            lat2: worksite.latitude,
-            lon2: worksite.longitude,
-          ).toStringAsFixed(0)}m, '
-          'Permitido: ${worksite.radius.toStringAsFixed(0)}m'
-        );
-      }
 
       return attendanceId;
     } catch (e) {
@@ -122,7 +146,98 @@ class AttendanceService {
     }
   }
 
-  /// Obtener o crear documento de asistencia para hoy
+  /// Registrar intento fallido de entrada (fuera del perímetro)
+  Future<String> _recordFailedCheckInAttempt({
+    required String workerId,
+    required String worksiteId,
+    required PunchRecord punchIn,
+    required double distance,
+    required double allowedRadius,
+  }) async {
+    DateTime today = DateTime.now();
+    DateTime startOfDay = DateTime(today.year, today.month, today.day);
+    DateTime endOfDay = startOfDay.add(const Duration(days: 1));
+
+    // Buscar documento existente para hoy
+    QuerySnapshot query = await _firestore
+        .collection('attendances')
+        .where('workerId', isEqualTo: workerId)
+        .where('worksiteId', isEqualTo: worksiteId)
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('date', isLessThan: Timestamp.fromDate(endOfDay))
+        .limit(1)
+        .get();
+
+    if (query.docs.isNotEmpty) {
+      // Actualizar documento existente con nuevo intento fallido
+      DocumentSnapshot doc = query.docs.first;
+      await doc.reference.update({
+        'punchIn': punchIn.toMap(),
+        'status': 'Intento Fallido',
+        'failureReason': 'Fuera del perímetro: ${distance.toStringAsFixed(0)}m de ${allowedRadius.toStringAsFixed(0)}m permitidos',
+        'lastAttempt': Timestamp.now(),
+      });
+      return doc.id;
+    } else {
+      // Crear nuevo documento con intento fallido
+      AttendanceModel attendance = AttendanceModel(
+        workerId: workerId,
+        worksiteId: worksiteId,
+        date: today,
+        punchIn: punchIn,
+        status: 'Intento Fallido',
+      );
+
+      Map<String, dynamic> data = attendance.toFirestore();
+      data['failureReason'] = 'Fuera del perímetro: ${distance.toStringAsFixed(0)}m de ${allowedRadius.toStringAsFixed(0)}m permitidos';
+      data['lastAttempt'] = Timestamp.now();
+
+      DocumentReference docRef = await _firestore
+          .collection('attendances')
+          .add(data);
+      
+      return docRef.id;
+    }
+  }
+
+  /// Registrar intento fallido de salida (fuera del perímetro)
+  Future<String> _recordFailedCheckOutAttempt({
+    required String workerId,
+    required String worksiteId,
+    required PunchRecord punchOut,
+    required double distance,
+    required double allowedRadius,
+  }) async {
+    DateTime today = DateTime.now();
+    DateTime startOfDay = DateTime(today.year, today.month, today.day);
+    DateTime endOfDay = startOfDay.add(const Duration(days: 1));
+
+    // Buscar documento existente para hoy
+    QuerySnapshot query = await _firestore
+        .collection('attendances')
+        .where('workerId', isEqualTo: workerId)
+        .where('worksiteId', isEqualTo: worksiteId)
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('date', isLessThan: Timestamp.fromDate(endOfDay))
+        .limit(1)
+        .get();
+
+    if (query.docs.isEmpty) {
+      throw Exception('No se encontró registro de entrada para hoy. Marca tu entrada primero.');
+    }
+
+    DocumentSnapshot doc = query.docs.first;
+    await doc.reference.update({
+      'punchOut': punchOut.toMap(),
+      'status': 'Intento Fallido',
+      'failureReason': 'Salida fuera del perímetro: ${distance.toStringAsFixed(0)}m de ${allowedRadius.toStringAsFixed(0)}m permitidos',
+      'lastAttempt': Timestamp.now(),
+    });
+
+    return doc.id;
+  }
+
+  /// Obtener o crear documento de asistencia para hoy (entrada exitosa)
   Future<String> _getOrCreateTodayAttendance({
     required String workerId,
     required String worksiteId,
@@ -143,12 +258,18 @@ class AttendanceService {
         .get();
 
     if (query.docs.isNotEmpty) {
-      // Actualizar documento existente
+      // Actualizar documento existente (podría ser un intento fallido previo)
       DocumentSnapshot doc = query.docs.first;
-      await doc.reference.update({
+      Map<String, dynamic> updateData = {
         'punchIn': punchIn.toMap(),
         'status': 'Presente',
-      });
+      };
+      
+      // Limpiar campos de intento fallido si existían
+      updateData['failureReason'] = FieldValue.delete();
+      updateData['lastAttempt'] = FieldValue.delete();
+      
+      await doc.reference.update(updateData);
       return doc.id;
     } else {
       // Crear nuevo documento
@@ -168,7 +289,7 @@ class AttendanceService {
     }
   }
 
-  /// Actualizar documento de asistencia con salida
+  /// Actualizar documento de asistencia con salida (salida exitosa)
   Future<String> _updateTodayAttendance({
     required String workerId,
     required String worksiteId,
@@ -207,11 +328,17 @@ class AttendanceService {
     double workedHours = workedDuration.inMinutes / 60.0;
 
     // Actualizar documento
-    await doc.reference.update({
+    Map<String, dynamic> updateData = {
       'punchOut': punchOut.toMap(),
       'workedHours': workedHours,
       'status': 'Presente',
-    });
+    };
+    
+    // Limpiar campos de intento fallido si existían
+    updateData['failureReason'] = FieldValue.delete();
+    updateData['lastAttempt'] = FieldValue.delete();
+
+    await doc.reference.update(updateData);
 
     return doc.id;
   }
@@ -254,7 +381,7 @@ class AttendanceService {
     )).toList();
   }
 
-  /// Verificar si ya marcó entrada hoy
+  /// Verificar si ya marcó entrada hoy (exitosamente)
   Future<bool> hasCheckedInToday(String workerId) async {
     DateTime today = DateTime.now();
     DateTime startOfDay = DateTime(today.year, today.month, today.day);
@@ -275,10 +402,12 @@ class AttendanceService {
       query.docs.first.id,
     );
 
-    return attendance.punchIn != null;
+    // Solo retorna true si tiene punchIn Y el estado es "Presente"
+    // Si es "Intento Fallido", permite seguir intentando
+    return attendance.punchIn != null && attendance.status == 'Presente';
   }
 
-  /// Verificar si ya marcó salida hoy
+  /// Verificar si ya marcó salida hoy (exitosamente)
   Future<bool> hasCheckedOutToday(String workerId) async {
     DateTime today = DateTime.now();
     DateTime startOfDay = DateTime(today.year, today.month, today.day);
@@ -299,6 +428,8 @@ class AttendanceService {
       query.docs.first.id,
     );
 
-    return attendance.punchOut != null;
+    // Solo retorna true si tiene punchOut Y el estado es "Presente"
+    // Si es "Intento Fallido", permite seguir intentando
+    return attendance.punchOut != null && attendance.status == 'Presente';
   }
 }
