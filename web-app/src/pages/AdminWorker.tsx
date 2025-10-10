@@ -101,30 +101,23 @@ const WorkersPage: React.FC = () => {
   }
 
   return (
-    <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '25px',
-        }}
-      >
-        <h1>Gestión de Trabajadores</h1>
-        <button
-          onClick={handleCreateWorker}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#28a745',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-          }}
-        >
-          + Crear Trabajador
-        </button>
+    <div className="space-y-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 animate-slide-in-top">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center space-x-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Gestión de Trabajadores</h1>
+              <p className="text-md text-gray-600">Administración del personal y sus roles</p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleCreateWorker}
+            className="bg-gradient-to-r from-[#2D6EA4] to-[#245d8c] text-white px-8 py-4 rounded-xl font-bold text-md shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-3"
+          >
+            <span>Nuevo Trabajador</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -141,267 +134,180 @@ const WorkersPage: React.FC = () => {
         </div>
       )}
 
-      {/* Filtros */}
-      <div
-        style={{
-          backgroundColor: 'white',
-          padding: '20px',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr 1fr',
-          gap: '15px',
-          alignItems: 'end',
-        }}
-      >
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Buscar</label>
-          <input
-            type="text"
-            placeholder="Nombre, DNI o email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-            }}
-          />
-        </div>
+      {/* Filtros y Resumen */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
+                <input
+                  type="text"
+                  placeholder="Nombre, DNI o email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#2D6EA4] focus:border-[#2D6EA4] text-sm"
+                />
+              </div>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Rol</label>
-          <select
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-            }}
-          >
-            <option value="all">Todos</option>
-            <option value="trabajador">Trabajador</option>
-            <option value="admin">Administrador</option>
-          </select>
-        </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                <select
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#2D6EA4] focus:border-[#2D6EA4] text-sm"
+                >
+                  <option value="all">Todos</option>
+                  <option value="trabajador">Trabajador</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </div>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Estado</label>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-            }}
-          >
-            <option value="all">Todos</option>
-            <option value="active">Activos</option>
-            <option value="inactive">Inactivos</option>
-          </select>
-        </div>
-      </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#2D6EA4] focus:border-[#2D6EA4] text-sm"
+                >
+                  <option value="all">Todos</option>
+                  <option value="active">Activos</option>
+                  <option value="inactive">Inactivos</option>
+                </select>
+              </div>
+            </div>
+          </div>
 
-      {/* Resumen */}
-      <div
-        style={{
-          backgroundColor: 'white',
-          padding: '15px',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          display: 'flex',
-          gap: '30px',
-          fontSize: '14px',
-        }}
-      >
-        <span>
-          <strong>Total:</strong> {workers.length}
-        </span>
-        <span>
-          <strong>Activos:</strong> {workers.filter((w) => w.isActive).length}
-        </span>
-        <span>
-          <strong>Inactivos:</strong> {workers.filter((w) => !w.isActive).length}
-        </span>
-        <span>
-          <strong>Mostrando:</strong> {filteredWorkers.length}
-        </span>
+          {/* Resumen */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <div className="text-sm font-medium text-gray-500">Total</div>
+                <div className="mt-1 text-xl font-semibold text-gray-900">{workers.length}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm font-medium text-gray-500">Activos</div>
+                <div className="mt-1 text-xl font-semibold text-green-600">
+                  {workers.filter((w) => w.isActive).length}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm font-medium text-gray-500">Inactivos</div>
+                <div className="mt-1 text-xl font-semibold text-red-600">
+                  {workers.filter((w) => !w.isActive).length}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm font-medium text-gray-500">Mostrando</div>
+                <div className="mt-1 text-xl font-semibold text-[#2D6EA4]">{filteredWorkers.length}</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Tabla de trabajadores */}
-      <div
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          overflow: 'hidden',
-        }}
-      >
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead style={{ backgroundColor: '#f8f9fa' }}>
-            <tr>
-              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>
-                Nombre
-              </th>
-              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>
-                DNI
-              </th>
-              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>
-                Email
-              </th>
-              <th
-                style={{ padding: '15px', textAlign: 'center', borderBottom: '1px solid #dee2e6' }}
-              >
-                Rol
-              </th>
-              <th
-                style={{ padding: '15px', textAlign: 'center', borderBottom: '1px solid #dee2e6' }}
-              >
-                Estado
-              </th>
-              <th
-                style={{ padding: '15px', textAlign: 'center', borderBottom: '1px solid #dee2e6' }}
-              >
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredWorkers.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={6}
-                  style={{
-                    padding: '30px',
-                    textAlign: 'center',
-                    color: '#666',
-                    fontStyle: 'italic',
-                  }}
-                >
-                  No se encontraron trabajadores
-                </td>
-              </tr>
-            ) : (
-              filteredWorkers.map((worker) => (
-                <tr key={worker.uid}>
-                  <td style={{ padding: '15px', borderBottom: '1px solid #dee2e6' }}>
-                    <strong>{worker.fullName}</strong>
-                  </td>
-                  <td style={{ padding: '15px', borderBottom: '1px solid #dee2e6' }}>
-                    {worker.dni}
-                  </td>
-                  <td style={{ padding: '15px', borderBottom: '1px solid #dee2e6' }}>
-                    {worker.email}
-                  </td>
-                  <td
-                    style={{
-                      padding: '15px',
-                      borderBottom: '1px solid #dee2e6',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <span
-                      style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        backgroundColor:
-                          worker.role === 'manager'
-                            ? '#e3f2fd'
-                            : worker.role === 'supervisor'
-                              ? '#fff3e0'
-                              : '#f3e5f5',
-                        color:
-                          worker.role === 'manager'
-                            ? '#1976d2'
-                            : worker.role === 'supervisor'
-                              ? '#f57c00'
-                              : '#7b1fa2',
-                      }}
-                    >
-                      {worker.role}
-                    </span>
-                  </td>
-                  <td
-                    style={{
-                      padding: '15px',
-                      borderBottom: '1px solid #dee2e6',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <span
-                      style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        backgroundColor: worker.isActive ? '#d4edda' : '#f8d7da',
-                        color: worker.isActive ? '#155724' : '#721c24',
-                      }}
-                    >
-                      {worker.isActive ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td
-                    style={{
-                      padding: '15px',
-                      borderBottom: '1px solid #dee2e6',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
-                      <button
-                        onClick={() => handleViewWorker(worker)}
-                        style={{
-                          padding: '5px 10px',
-                          backgroundColor: '#17a2b8',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                        }}
-                      >
-                        Ver
-                      </button>
-                      <button
-                        onClick={() => handleEditWorker(worker)}
-                        style={{
-                          padding: '5px 10px',
-                          backgroundColor: '#ffc107',
-                          color: 'black',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                        }}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleToggleStatus(worker)}
-                        style={{
-                          padding: '5px 10px',
-                          backgroundColor: worker.isActive ? '#dc3545' : '#28a745',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                        }}
-                      >
-                        {worker.isActive ? 'Desactivar' : 'Activar'}
-                      </button>
-                    </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="max-w-full overflow-x-auto">
+          <div className="inline-block min-w-full align-middle">
+            <table className="w-full divide-y divide-gray-200 table-fixed">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="w-[25%] px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Nombre
+                  </th>
+                  <th className="w-[15%] px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    DNI
+                  </th>
+                  <th className="w-[25%] px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="w-[10%] px-3 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Rol
+                  </th>
+                  <th className="w-[10%] px-3 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th className="w-[15%] px-3 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredWorkers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-3 py-10 text-center text-gray-500 italic">
+                    No se encontraron trabajadores
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filteredWorkers.map((worker) => (
+                  <tr key={worker.uid} className="hover:bg-gray-50">
+                    <td className="px-3 py-4 truncate">
+                      <div className="text-sm font-medium text-gray-900">{worker.fullName}</div>
+                    </td>
+                    <td className="px-3 py-4 truncate">
+                      <div className="text-sm text-gray-500">{worker.dni === '' ? '-' : worker.dni}</div>
+                    </td>
+                    <td className="px-3 py-4 truncate">
+                      <div className="text-sm text-gray-500">{worker.email === '' ? '-' : worker.email}</div>
+                    </td>
+                    <td className="px-3 py-4 text-center">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                        ${
+                          worker.role === 'manager'
+                            ? 'bg-blue-100 text-blue-800'
+                            : worker.role === 'supervisor'
+                              ? 'bg-orange-100 text-orange-800'
+                              : 'bg-purple-100 text-purple-800'
+                        }`}
+                      >
+                        {worker.role}
+                      </span>
+                    </td>
+                    <td className="px-3 py-4 text-center">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                        ${
+                          worker.isActive
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {worker.isActive ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-4 text-center">
+                      <div className="flex justify-center space-x-1">
+                        <button
+                          onClick={() => handleViewWorker(worker)}
+                          className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded-lg text-[#2D6EA4] bg-[#2D6EA4]/10 hover:bg-[#2D6EA4]/20 transition-colors duration-200"
+                        >
+                          Ver
+                        </button>
+                        <button
+                          onClick={() => handleEditWorker(worker)}
+                          className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded-lg text-yellow-700 bg-yellow-100 hover:bg-yellow-200 transition-colors duration-200"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => void handleToggleStatus(worker)}
+                          className={`inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded-lg transition-colors duration-200 ${
+                            worker.isActive
+                              ? 'text-red-700 bg-red-100 hover:bg-red-200'
+                              : 'text-green-700 bg-green-100 hover:bg-green-200'
+                          }`}
+                        >
+                          {worker.isActive ? 'Desactivar' : 'Activar'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Modal */}
@@ -413,6 +319,7 @@ const WorkersPage: React.FC = () => {
         mode={modalMode}
       />
     </div>
+  </div>
   );
 };
 

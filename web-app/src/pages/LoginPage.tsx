@@ -13,110 +13,86 @@ const LoginPage: React.FC = () => {
   const location = useLocation();
 
   // Obtener la página desde donde vino (si fue redirigido)
-  const from = location.state?.from?.pathname || '/gestion-trabajadoress';
+  const from = location.pathname || '/gestion-trabajadores';
 
   const handleLogin = async () => {
-    if (!email || !password) return;
+    if (!email || !password) {
+      setError('Por favor, ingrese email y contraseña');
+      return;
+    }
 
     setError('');
     setLoading(true);
 
     try {
       await login(email, password);
-      navigate(from, { replace: true });
-    } catch (error: any) {
-      setError(error.message);
+      void navigate(from, { replace: true });
+    } catch (error) {
+      setError((error as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        backgroundColor: '#f5f5f5',
-      }}
-    >
-      <div
-        style={{
-          backgroundColor: 'white',
-          padding: '40px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-          width: '100%',
-          maxWidth: '400px',
-        }}
-      >
-        <h2 style={{ textAlign: 'center', marginBottom: '30px' }}>Iniciar Sesión</h2>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-8">
+        <div>
+          <img
+            className="mx-auto h-52 w-auto"
+            src="/logo.svg"
+            alt="Logo de la empresa"
+          />
+          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
+            Iniciar Sesión
+          </h2>
+        </div>
 
         {error && (
-          <div
-            style={{
-              color: '#e74c3c',
-              backgroundColor: '#fadbd8',
-              padding: '10px',
-              borderRadius: '4px',
-              marginBottom: '20px',
-              textAlign: 'center',
-            }}
-          >
-            {error}
+          <div className="rounded-md bg-red-50 p-4">
+            <div className="text-center text-sm font-medium text-red-800">
+              {error}
+            </div>
           </div>
         )}
 
-        <div style={{ marginBottom: '20px' }}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '16px',
-            }}
-          />
-        </div>
+        <div className="mt-8 space-y-6">
+          <div className="space-y-4 rounded-md shadow-sm">
+            <div>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-[#2D6EA4] focus:outline-none focus:ring-[#2D6EA4] sm:text-sm"
+              />
+            </div>
+            <div>
+              <input
+                type="password"
+                placeholder="Contraseña"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void handleLogin(); }}
+                className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-[#2D6EA4] focus:outline-none focus:ring-[#2D6EA4] sm:text-sm"
+              />
+            </div>
+          </div>
 
-        <div style={{ marginBottom: '30px' }}>
-          <input
-            type="password"
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '16px',
-            }}
-          />
+          <div>
+            <button
+              onClick={() => { void handleLogin(); }}
+              disabled={loading || !email || !password}
+              className={`group relative flex w-full justify-center rounded-md border border-transparent py-2 px-4 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-[#2D6EA4] focus:ring-offset-2
+                ${loading || !email || !password
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-[#2D6EA4] hover:bg-[#245d8c] cursor-pointer'
+                }`}
+            >
+              {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            </button>
+          </div>
         </div>
-
-        <button
-          onClick={handleLogin}
-          disabled={loading || !email || !password}
-          style={{
-            width: '100%',
-            padding: '12px',
-            backgroundColor: loading ? '#bdc3c7' : '#3498db',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            fontSize: '16px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-        </button>
       </div>
     </div>
   );
