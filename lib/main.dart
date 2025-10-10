@@ -31,6 +31,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'Control Asistencia GPS',
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(
           primarySwatch: AppColors.primarySwatch,
           primaryColor: AppColors.primary,

@@ -23,6 +23,13 @@ dependencies:
   # State management & utilities
   provider: ^6.1.1
   shared_preferences: ^2.2.2
+  
+  # Nuevas librerías para diseño moderno
+  animate_do: ^3.3.4
+  glassmorphism: ^3.0.0
+  flutter_staggered_animations: ^1.1.1
+  shimmer: ^3.0.0
+  flutter_spinkit: ^5.2.1
 
 dev_dependencies:
   flutter_test:

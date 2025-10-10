@@ -23,6 +23,16 @@ class AttendanceService {
       // Obtener datos de la obra para validar geofence
       WorksiteModel worksite = await _getWorksite(worksiteId);
 
+      // 🔍 VALIDACIÓN: Verificar que las coordenadas sean válidas
+      if (!_areValidCoordinates(worksite.latitude, worksite.longitude)) {
+        throw Exception(
+          '⚠️ ERROR DE CONFIGURACIÓN:\n'
+          'Las coordenadas de la obra "${worksite.name}" no son válidas.\n'
+          'Lat: ${worksite.latitude}, Lon: ${worksite.longitude}\n'
+          'Contacta al administrador para corregir la ubicación de la obra.'
+        );
+      }
+
       // Validar que esté dentro del perímetro
       bool isWithinWorksite = _locationService.isWithinWorksite(
         userPosition: position,
@@ -37,6 +47,15 @@ class AttendanceService {
         lat2: worksite.latitude,
         lon2: worksite.longitude,
       );
+
+      // 🔍 DEBUG: Log detallado
+      print('📍 ENTRADA - DEBUG COMPLETO:');
+      print('Usuario: ${position.latitude}, ${position.longitude}');
+      print('Obra "${worksite.name}": ${worksite.latitude}, ${worksite.longitude}');
+      print('Distancia: ${distance.toStringAsFixed(2)}m');
+      print('Radio permitido: ${worksite.radius}m');
+      print('¿Dentro?: $isWithinWorksite');
+      print('─────────────────────────────');
 
       // Crear registro del intento (válido o no)
       PunchRecord punchIn = PunchRecord(
@@ -55,10 +74,11 @@ class AttendanceService {
           allowedRadius: worksite.radius,
         );
 
+        String distanceText = _formatDistance(distance);
         throw Exception(
-          'Estás fuera del perímetro permitido para esta obra. '
-          'Distancia: ${distance.toStringAsFixed(0)}m, '
-          'Permitido: ${worksite.radius.toStringAsFixed(0)}m. '
+          'Estás fuera del perímetro permitido para "${worksite.name}".\n\n'
+          '📍 Tu distancia: $distanceText\n'
+          '✅ Permitido: ${worksite.radius.toStringAsFixed(0)}m\n\n'
           'Intento registrado como "Intento Fallido".'
         );
       }
@@ -70,9 +90,10 @@ class AttendanceService {
         punchIn: punchIn,
       );
 
+      print('✅ Entrada registrada exitosamente. ID: $attendanceId');
       return attendanceId;
     } catch (e) {
-      print('Error marking check-in: $e');
+      print('❌ Error marking check-in: $e');
       rethrow;
     }
   }
@@ -92,6 +113,15 @@ class AttendanceService {
       // Obtener datos de la obra para validar geofence
       WorksiteModel worksite = await _getWorksite(worksiteId);
 
+      // 🔍 VALIDACIÓN: Verificar que las coordenadas sean válidas
+      if (!_areValidCoordinates(worksite.latitude, worksite.longitude)) {
+        throw Exception(
+          '⚠️ ERROR DE CONFIGURACIÓN:\n'
+          'Las coordenadas de la obra "${worksite.name}" no son válidas.\n'
+          'Contacta al administrador para corregir la ubicación.'
+        );
+      }
+
       // Validar que esté dentro del perímetro
       bool isWithinWorksite = _locationService.isWithinWorksite(
         userPosition: position,
@@ -106,6 +136,15 @@ class AttendanceService {
         lat2: worksite.latitude,
         lon2: worksite.longitude,
       );
+
+      // 🔍 DEBUG: Log detallado
+      print('📍 SALIDA - DEBUG COMPLETO:');
+      print('Usuario: ${position.latitude}, ${position.longitude}');
+      print('Obra "${worksite.name}": ${worksite.latitude}, ${worksite.longitude}');
+      print('Distancia: ${distance.toStringAsFixed(2)}m');
+      print('Radio permitido: ${worksite.radius}m');
+      print('¿Dentro?: $isWithinWorksite');
+      print('─────────────────────────────');
 
       // Crear registro del intento (válido o no)
       PunchRecord punchOut = PunchRecord(
@@ -124,10 +163,11 @@ class AttendanceService {
           allowedRadius: worksite.radius,
         );
 
+        String distanceText = _formatDistance(distance);
         throw Exception(
-          'Estás fuera del perímetro permitido para esta obra. '
-          'Distancia: ${distance.toStringAsFixed(0)}m, '
-          'Permitido: ${worksite.radius.toStringAsFixed(0)}m. '
+          'Estás fuera del perímetro permitido para "${worksite.name}".\n\n'
+          '📍 Tu distancia: $distanceText\n'
+          '✅ Permitido: ${worksite.radius.toStringAsFixed(0)}m\n\n'
           'Intento registrado como "Intento Fallido".'
         );
       }
@@ -139,10 +179,29 @@ class AttendanceService {
         punchOut: punchOut,
       );
 
+      print('✅ Salida registrada exitosamente. ID: $attendanceId');
       return attendanceId;
     } catch (e) {
-      print('Error marking check-out: $e');
+      print('❌ Error marking check-out: $e');
       rethrow;
+    }
+  }
+
+  /// 🆕 Validar que las coordenadas sean válidas geográficamente
+  bool _areValidCoordinates(double latitude, double longitude) {
+    if (latitude < -90 || latitude > 90) return false;
+    if (longitude < -180 || longitude > 180) return false;
+    if (latitude == 0.0 && longitude == 0.0) return false;
+    return true;
+  }
+
+  /// 🆕 Formatear distancia de forma legible
+  String _formatDistance(double meters) {
+    if (meters >= 1000) {
+      double km = meters / 1000;
+      return '${km.toStringAsFixed(2)} km';
+    } else {
+      return '${meters.toStringAsFixed(0)} m';
     }
   }
 
@@ -158,7 +217,6 @@ class AttendanceService {
     DateTime startOfDay = DateTime(today.year, today.month, today.day);
     DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
-    // Buscar documento existente para hoy
     QuerySnapshot query = await _firestore
         .collection('attendances')
         .where('workerId', isEqualTo: workerId)
@@ -168,18 +226,18 @@ class AttendanceService {
         .limit(1)
         .get();
 
+    String failureReason = 'Fuera del perímetro: ${_formatDistance(distance)} de ${allowedRadius.toStringAsFixed(0)}m permitidos';
+
     if (query.docs.isNotEmpty) {
-      // Actualizar documento existente con nuevo intento fallido
       DocumentSnapshot doc = query.docs.first;
       await doc.reference.update({
         'punchIn': punchIn.toMap(),
         'status': 'Intento Fallido',
-        'failureReason': 'Fuera del perímetro: ${distance.toStringAsFixed(0)}m de ${allowedRadius.toStringAsFixed(0)}m permitidos',
+        'failureReason': failureReason,
         'lastAttempt': Timestamp.now(),
       });
       return doc.id;
     } else {
-      // Crear nuevo documento con intento fallido
       AttendanceModel attendance = AttendanceModel(
         workerId: workerId,
         worksiteId: worksiteId,
@@ -189,7 +247,7 @@ class AttendanceService {
       );
 
       Map<String, dynamic> data = attendance.toFirestore();
-      data['failureReason'] = 'Fuera del perímetro: ${distance.toStringAsFixed(0)}m de ${allowedRadius.toStringAsFixed(0)}m permitidos';
+      data['failureReason'] = failureReason;
       data['lastAttempt'] = Timestamp.now();
 
       DocumentReference docRef = await _firestore
@@ -212,7 +270,6 @@ class AttendanceService {
     DateTime startOfDay = DateTime(today.year, today.month, today.day);
     DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
-    // Buscar documento existente para hoy
     QuerySnapshot query = await _firestore
         .collection('attendances')
         .where('workerId', isEqualTo: workerId)
@@ -226,11 +283,13 @@ class AttendanceService {
       throw Exception('No se encontró registro de entrada para hoy. Marca tu entrada primero.');
     }
 
+    String failureReason = 'Salida fuera del perímetro: ${_formatDistance(distance)} de ${allowedRadius.toStringAsFixed(0)}m permitidos';
+
     DocumentSnapshot doc = query.docs.first;
     await doc.reference.update({
       'punchOut': punchOut.toMap(),
       'status': 'Intento Fallido',
-      'failureReason': 'Salida fuera del perímetro: ${distance.toStringAsFixed(0)}m de ${allowedRadius.toStringAsFixed(0)}m permitidos',
+      'failureReason': failureReason,
       'lastAttempt': Timestamp.now(),
     });
 
@@ -247,7 +306,6 @@ class AttendanceService {
     DateTime startOfDay = DateTime(today.year, today.month, today.day);
     DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
-    // Buscar documento existente para hoy
     QuerySnapshot query = await _firestore
         .collection('attendances')
         .where('workerId', isEqualTo: workerId)
@@ -258,21 +316,19 @@ class AttendanceService {
         .get();
 
     if (query.docs.isNotEmpty) {
-      // Actualizar documento existente (podría ser un intento fallido previo)
       DocumentSnapshot doc = query.docs.first;
       Map<String, dynamic> updateData = {
         'punchIn': punchIn.toMap(),
         'status': 'Presente',
       };
       
-      // Limpiar campos de intento fallido si existían
       updateData['failureReason'] = FieldValue.delete();
       updateData['lastAttempt'] = FieldValue.delete();
       
       await doc.reference.update(updateData);
+      print('📝 Documento actualizado: ${doc.id}');
       return doc.id;
     } else {
-      // Crear nuevo documento
       AttendanceModel attendance = AttendanceModel(
         workerId: workerId,
         worksiteId: worksiteId,
@@ -285,6 +341,7 @@ class AttendanceService {
           .collection('attendances')
           .add(attendance.toFirestore());
       
+      print('📝 Nuevo documento creado: ${docRef.id}');
       return docRef.id;
     }
   }
@@ -299,7 +356,6 @@ class AttendanceService {
     DateTime startOfDay = DateTime(today.year, today.month, today.day);
     DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
-    // Buscar documento existente para hoy
     QuerySnapshot query = await _firestore
         .collection('attendances')
         .where('workerId', isEqualTo: workerId)
@@ -323,22 +379,20 @@ class AttendanceService {
       throw Exception('No se encontró registro de entrada para hoy. Marca tu entrada primero.');
     }
 
-    // Calcular horas trabajadas
     Duration workedDuration = punchOut.timestamp.difference(attendance.punchIn!.timestamp);
     double workedHours = workedDuration.inMinutes / 60.0;
 
-    // Actualizar documento
     Map<String, dynamic> updateData = {
       'punchOut': punchOut.toMap(),
       'workedHours': workedHours,
       'status': 'Presente',
     };
     
-    // Limpiar campos de intento fallido si existían
     updateData['failureReason'] = FieldValue.delete();
     updateData['lastAttempt'] = FieldValue.delete();
 
     await doc.reference.update(updateData);
+    print('📝 Salida actualizada en documento: ${doc.id}');
 
     return doc.id;
   }
@@ -381,55 +435,96 @@ class AttendanceService {
     )).toList();
   }
 
-  /// Verificar si ya marcó entrada hoy (exitosamente)
+  /// 🔧 CORREGIDO: Verificar si ya marcó entrada hoy (exitosamente)
   Future<bool> hasCheckedInToday(String workerId) async {
     DateTime today = DateTime.now();
     DateTime startOfDay = DateTime(today.year, today.month, today.day);
     DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
+    print('🔍 === VERIFICANDO ENTRADA PARA HOY ===');
+    print('WorkerId: $workerId');
+    print('Rango: $startOfDay - $endOfDay');
+
+    // 🔧 Buscar TODOS los documentos del día (no solo 1)
     QuerySnapshot query = await _firestore
         .collection('attendances')
         .where('workerId', isEqualTo: workerId)
         .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
         .where('date', isLessThan: Timestamp.fromDate(endOfDay))
-        .limit(1)
         .get();
 
-    if (query.docs.isEmpty) return false;
+    print('📄 Total documentos encontrados: ${query.docs.length}');
 
-    AttendanceModel attendance = AttendanceModel.fromFirestore(
-      query.docs.first.data() as Map<String, dynamic>,
-      query.docs.first.id,
-    );
+    if (query.docs.isEmpty) {
+      print('❌ No hay documentos para hoy');
+      print('=====================================');
+      return false;
+    }
 
-    // Solo retorna true si tiene punchIn Y el estado es "Presente"
-    // Si es "Intento Fallido", permite seguir intentando
-    return attendance.punchIn != null && attendance.status == 'Presente';
+    // 🔧 Buscar si ALGUNO tiene status "Presente"
+    for (var doc in query.docs) {
+      var docData = doc.data() as Map<String, dynamic>;
+      print('📄 Revisando documento: ${doc.id}');
+      print('   - Status: ${docData['status']}');
+      print('   - PunchIn existe: ${docData['punchIn'] != null}');
+
+      AttendanceModel attendance = AttendanceModel.fromFirestore(docData, doc.id);
+
+      if (attendance.punchIn != null && attendance.status == 'Presente') {
+        print('✅ ¡Encontrado! Entrada registrada con éxito');
+        print('=====================================');
+        return true;
+      }
+    }
+
+    print('❌ No se encontró entrada exitosa (solo intentos fallidos)');
+    print('=====================================');
+    return false;
   }
 
-  /// Verificar si ya marcó salida hoy (exitosamente)
+  /// 🔧 CORREGIDO: Verificar si ya marcó salida hoy (exitosamente)
   Future<bool> hasCheckedOutToday(String workerId) async {
     DateTime today = DateTime.now();
     DateTime startOfDay = DateTime(today.year, today.month, today.day);
     DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
+    print('🔍 === VERIFICANDO SALIDA PARA HOY ===');
+    print('WorkerId: $workerId');
+
+    // 🔧 Buscar TODOS los documentos del día
     QuerySnapshot query = await _firestore
         .collection('attendances')
         .where('workerId', isEqualTo: workerId)
         .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
         .where('date', isLessThan: Timestamp.fromDate(endOfDay))
-        .limit(1)
         .get();
 
-    if (query.docs.isEmpty) return false;
+    print('📄 Total documentos encontrados: ${query.docs.length}');
 
-    AttendanceModel attendance = AttendanceModel.fromFirestore(
-      query.docs.first.data() as Map<String, dynamic>,
-      query.docs.first.id,
-    );
+    if (query.docs.isEmpty) {
+      print('❌ No hay documentos para hoy');
+      print('=====================================');
+      return false;
+    }
 
-    // Solo retorna true si tiene punchOut Y el estado es "Presente"
-    // Si es "Intento Fallido", permite seguir intentando
-    return attendance.punchOut != null && attendance.status == 'Presente';
+    // 🔧 Buscar si ALGUNO tiene status "Presente" con salida
+    for (var doc in query.docs) {
+      var docData = doc.data() as Map<String, dynamic>;
+      print('📄 Revisando documento: ${doc.id}');
+      print('   - Status: ${docData['status']}');
+      print('   - PunchOut existe: ${docData['punchOut'] != null}');
+
+      AttendanceModel attendance = AttendanceModel.fromFirestore(docData, doc.id);
+
+      if (attendance.punchOut != null && attendance.status == 'Presente') {
+        print('✅ ¡Encontrado! Salida registrada con éxito');
+        print('=====================================');
+        return true;
+      }
+    }
+
+    print('❌ No se encontró salida exitosa');
+    print('=====================================');
+    return false;
   }
 }
