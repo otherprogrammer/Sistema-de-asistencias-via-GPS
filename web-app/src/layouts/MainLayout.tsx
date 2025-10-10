@@ -11,111 +11,84 @@ const MainLayout: React.FC = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/login');
+      await navigate('/login');
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     }
   };
 
   const menuItems = [
-    { path: '/gestion-trabajadores', label: 'Gestión de trabajadores', icon: '📊' },
+    { path: '/gestion-trabajadores', label: 'Gestión de Trabajadores', icon: '📊' },
     { path: '/gestion-obras', label: 'Gestión de Obras', icon: '🏗️' },
+    { path: '/registro-asistencias', label: 'Registro de Asistencias', icon: '📅' },
+    { path: '/justificacion-asistencias', label: 'Justificación de Asistencias', icon: '✍️' },
   ];
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
+    <div className="flex h-screen">
       {/* Sidebar */}
       <div
-        style={{
-          width: sidebarOpen ? '250px' : '60px',
-          backgroundColor: '#2c3e50',
-          color: 'white',
-          transition: 'width 0.3s ease',
-          flexShrink: 0,
-        }}
+        className={`${
+          sidebarOpen ? 'w-64' : 'w-16'
+        } bg-[#2D6EA4] text-white transition-width duration-300 ease-in-out flex-shrink-0`}
       >
         {/* Header del sidebar */}
-        <div
-          style={{
-            padding: '16px',
-            borderBottom: '1px solid #34495e',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          {sidebarOpen && <h3 style={{ margin: 0, fontSize: '18px' }}>Panel de Administración</h3>}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'white',
-              fontSize: '20px',
-              cursor: 'pointer',
-            }}
-          >
-            {sidebarOpen ? '◀' : '▶'}
-          </button>
+        <div className="flex flex-col items-center border-b border-[#245d8c]">
+          {/* Logo siempre visible */}
+          <div className="w-full flex items-center justify-center p-2">
+            <img
+              src="/logo-blanco.svg"
+              alt="Logo"
+              className={`${sidebarOpen ? 'h-24 w-auto' : 'h-12 w-auto'} transition-all duration-300`}
+            />
+          </div>
+
+          {/* Título y botón de colapso */}
+          <div className="w-full flex items-center justify-between px-4 pb-4">
+            {sidebarOpen && (
+              <h3 className="text-lg font-semibold">Panel Administración</h3>
+            )}
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="text-white hover:bg-[#245d8c] p-2 rounded-lg transition-colors duration-200"
+            >
+              {sidebarOpen ? '◀' : '▶'}
+            </button>
+          </div>
         </div>
 
         {/* Menú de navegación */}
-        <nav style={{ padding: '20px 0' }}>
+        <nav className="py-4">
           {menuItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: '12px 20px',
-                color: location.pathname === item.path ? '#3498db' : 'white',
-                textDecoration: 'none',
-                backgroundColor:
-                  location.pathname === item.path ? 'rgba(52, 152, 219, 0.1)' : 'transparent',
-                borderLeft:
-                  location.pathname === item.path ? '3px solid #3498db' : '3px solid transparent',
-              }}
+              className={`flex items-center px-4 py-3 text-sm ${
+                sidebarOpen ? 'mx-2' : 'mx-1'
+              } rounded-lg transition-colors duration-200 ${
+                location.pathname === item.path
+                  ? 'bg-white/10 text-white'
+                  : 'text-white/80 hover:bg-white/5'
+              }`}
             >
-              <span style={{ marginRight: sidebarOpen ? '10px' : '0', fontSize: '18px' }}>
+              <span className={`text-xl ${sidebarOpen ? 'mr-3' : 'mx-auto'}`}>
                 {item.icon}
               </span>
-              {sidebarOpen && <span>{item.label}</span>}
+              {sidebarOpen && <span className="font-medium">{item.label}</span>}
             </Link>
           ))}
         </nav>
       </div>
 
       {/* Contenido principal */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div className="flex flex-col flex-1">
         {/* Header */}
-        <header
-          style={{
-            backgroundColor: 'white',
-            padding: '15px 30px',
-            borderBottom: '1px solid #e0e0e0',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <h1 style={{ margin: 0, fontSize: '24px', color: '#2c3e50' }}>
-            {menuItems.find((item) => item.path === location.pathname)?.label ||
-              'Gestión de Trabajadores'}
-          </h1>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <span style={{ color: '#666' }}>{userData?.fullName || user?.email}</span>
+        <header className="bg-white px-6 py-4 border-b border-gray-200 flex justify-end items-center shadow-sm">
+          <div className="flex items-center space-x-4">
+            <span className="text-gray-600">{userData?.fullName || user?.email}</span>
             <button
-              onClick={handleLogout}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#e74c3c',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
+              onClick={() => void handleLogout()}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
             >
               Cerrar Sesión
             </button>
@@ -123,14 +96,7 @@ const MainLayout: React.FC = () => {
         </header>
 
         {/* Contenido de la página */}
-        <main
-          style={{
-            flex: 1,
-            padding: '30px',
-            backgroundColor: '#f8f9fa',
-            overflow: 'auto',
-          }}
-        >
+        <main className="flex-1 p-6 bg-gray-50 overflow-auto">
           <Outlet />
         </main>
       </div>
