@@ -200,7 +200,7 @@ const WorksiteModal: React.FC<WorksiteModalProps> = ({
       onSave(savedWorksite);
       onClose();
     } catch (error) {
-      setError(error.message);
+      setError((error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -221,7 +221,7 @@ const WorksiteModal: React.FC<WorksiteModalProps> = ({
     >
       {/* Modal Container - Más grande para obras */}
       <div
-        className={`bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden transition-all duration-300 ${
+        className={`bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[95vh] overflow-hidden transition-all duration-300 ${
           isClosing
             ? 'animate-scale-out animate-slide-out-bottom'
             : 'animate-scale-in animate-slide-in-bottom'
@@ -269,7 +269,7 @@ const WorksiteModal: React.FC<WorksiteModalProps> = ({
         {/* Content */}
         <div className="flex max-h-[calc(95vh-190px)]">
           {/* Formulario - Panel izquierdo */}
-          <div className="w-1/2 p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
+          <div className="w-full p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
             {/* Error Message */}
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3 animate-slide-in-top">
@@ -484,7 +484,7 @@ const WorksiteModal: React.FC<WorksiteModalProps> = ({
                           <span>Creada:</span>
                         </span>
                         <span className="text-sm text-gray-900 font-medium">
-                          {new Date(worksite.createdAt.toDate()).toLocaleDateString('es-ES', {
+                          {worksite.createdAt.toDate().toLocaleDateString('es-ES', {
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric',
@@ -501,7 +501,7 @@ const WorksiteModal: React.FC<WorksiteModalProps> = ({
           </div>
 
           {/* Mapa - Panel derecho */}
-          <div className="w-1/2 p-6 bg-gray-50 border-l border-gray-200 flex flex-col">
+          {/* <div className="w-1/2 p-6 bg-gray-50 border-l border-gray-200 flex flex-col">
             <label className="text-sm font-bold text-gray-700 mb-4 flex items-center space-x-2">
               <span>Previsualización del Geofence</span>
             </label>
@@ -524,7 +524,7 @@ const WorksiteModal: React.FC<WorksiteModalProps> = ({
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Footer */}
@@ -539,7 +539,7 @@ const WorksiteModal: React.FC<WorksiteModalProps> = ({
             </button>
 
             <button
-              onClick={handleSubmit}
+              onClick={() => { void handleSubmit() }}
               disabled={loading}
               className={`px-8 py-3 text-white rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transform hover:scale-105 ${
                 loading

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import type { UserData, CreateWorkerData } from '../types';
+import type { UserData, CreateWorkerData, Worksite } from '../types';
 import { workersService } from '../services/workersService';
+import { worksitesService } from '../services/worksitesService';
 
 interface WorkerModalProps {
   isOpen: boolean;
@@ -16,11 +17,13 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
     password: '',
     dni: '',
     fullName: '',
+    assignedWorksiteId: '',
     role: 'trabajador',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isClosing, setIsClosing] = useState(false);
+  const [worksites, setWorksites] = useState<Worksite[]>([]);
 
   // Manejar animaciones de cierre
   const handleClose = () => {
@@ -31,6 +34,20 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
     }, 200);
   };
 
+  // Cargar obras para el select
+  useEffect(() => {
+    const fetchWorksites = async () => {
+      try {
+        const data = await worksitesService.getAllWorksites();
+        setWorksites(data);
+      } catch (error) {
+        console.error('Error cargando obras:', error);
+      }
+    };
+
+    fetchWorksites();
+  }, []);
+
   useEffect(() => {
     if (worker && (mode === 'edit' || mode === 'view')) {
       setFormData({
@@ -38,6 +55,7 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
         password: '', // No mostrar password existente
         dni: worker.dni,
         fullName: worker.fullName,
+        assignedWorksiteId: worker.assignedWorksiteId || '',
         role: worker.role,
       });
     } else {
@@ -46,6 +64,7 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
         password: '',
         dni: '',
         fullName: '',
+        assignedWorksiteId: '',
         role: 'trabajador',
       });
     }
@@ -58,7 +77,6 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
 
     try {
       // Validaciones
-      console.log(formData.role !== 'trabajador' && !formData.email);
       if (
         !formData.fullName ||
         (formData.role === 'trabajador' && !formData.dni) ||
@@ -92,6 +110,7 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
           email: formData.email,
           dni: formData.dni,
           fullName: formData.fullName,
+          assignedWorksiteId: formData.assignedWorksiteId || null,
           role: formData.role,
         });
         savedWorker = { ...worker, ...formData };
@@ -268,6 +287,38 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
                 </div>
               )}
 
+              {/* Seleccionar obra */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Obra Asignada</label>
+                <select
+                  name="assignedWorksite"
+                  id="assignedWorksite"
+                  value={formData.assignedWorksiteId}
+                  onChange={(e) => setFormData({ ...formData, assignedWorksiteId: e.target.value })}
+                  disabled={isReadOnly || loading}
+                  className={`w-full px-4 py-3 border rounded-lg transition-all duration-200 ${
+                    isReadOnly || loading
+                      ? 'bg-gray-50 border-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-opacity-20'
+                  }`}
+                >
+                  <option value="">Sin asignar</option>
+                  {worksites.map(worksite => (
+                    <option
+                      key={worksite.worksiteId}
+                      value={worksite.worksiteId}
+                    >
+                      {worksite.name}
+                    </option>
+                  ))}
+                </select>
+                {isReadOnly && formData.assignedWorksiteId && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    ID: {formData.assignedWorksiteId}
+                  </p>
+                )}
+              </div>
+
               {/* Rol */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Rol</label>
@@ -307,9 +358,12 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Sitio Asignado:</span>
+                    <span className="text-sm text-gray-600">Obra Asignada:</span>
                     <span className="text-sm text-gray-900">
-                      {worker.assignedWorksiteId || 'Sin asignar'}
+                      {worker.assignedWorksiteId
+                        ? (worksites.find(w => w.worksiteId === worker.assignedWorksiteId)?.name || 'Obra no encontrada')
+                        : 'Sin asignar'
+                      }
                     </span>
                   </div>
 
@@ -336,9 +390,7 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
               </button>
 
               <button
-                onClick={() => {
-                  handleSubmit();
-                }}
+                onClick={() => void handleSubmit()}
                 disabled={loading}
                 className={`px-6 py-2.5 text-white rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 ${
                   loading
