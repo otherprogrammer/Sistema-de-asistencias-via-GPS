@@ -4,12 +4,15 @@ import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../services/auth_service.dart';
 import '../../services/location_service.dart';
 import '../../services/attendance_service.dart';
 import '../../constants/app_colors.dart';
 import 'worker_history_screen.dart';
 import 'change_password_screen.dart';
+import '../../services/offline_sync_service.dart';
+import 'dart:async';
 
 class WorkerHomeScreen extends StatefulWidget {
   const WorkerHomeScreen({super.key});
@@ -21,11 +24,14 @@ class WorkerHomeScreen extends StatefulWidget {
 class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProviderStateMixin {
   final LocationService _locationService = LocationService();
   final AttendanceService _attendanceService = AttendanceService();
+  final OfflineSyncService _offlineSync = OfflineSyncService();
+  int _pendingSyncCount = 0;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isProcessingLocation = false;
   bool _hasCheckedInToday = false;
   bool _hasCheckedOutToday = false;
   bool _isLoadingStatus = true;
-  bool _hasInitialized = false; // 🆕 Flag para evitar múltiples llamadas
+  bool _hasInitialized = false;
 
   late AnimationController _pulseController;
 
@@ -37,19 +43,20 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
       duration: const Duration(milliseconds: 1500),
     )..repeat();
     
-    // 🆕 Verificar estado después de que el widget se haya construido
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkTodayAttendanceStatus();
+      _checkPendingSync();
+      _startAutoSync();
     });
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _connectivitySubscription?.cancel();
     super.dispose();
   }
 
-  // 🆕 Método mejorado que se puede llamar múltiples veces de forma segura
   Future<void> _checkTodayAttendanceStatus() async {
     if (!mounted) return;
 
@@ -95,9 +102,82 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
     }
   }
 
-  // 🆕 Método para refrescar el estado (llamar después de marcar asistencia)
   Future<void> _refreshAttendanceStatus() async {
     await _checkTodayAttendanceStatus();
+  }
+
+  Future<void> _checkPendingSync() async {
+    int count = await _offlineSync.getPendingCount();
+    if (mounted) {
+      setState(() {
+        _pendingSyncCount = count;
+      });
+    }
+  }
+
+  void _startAutoSync() {
+    _connectivitySubscription = _offlineSync.watchConnectivity().listen((results) async {
+      if (results.isNotEmpty && !results.contains(ConnectivityResult.none)) {
+        print('📶 Conexión detectada: $results');
+        await _syncPendingAttendances();
+      }
+    });
+  }
+
+  Future<void> _syncPendingAttendances() async {
+    int count = await _offlineSync.getPendingCount();
+    if (count == 0) return;
+
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SpinKitFadingCircle(color: AppColors.primary, size: 60),
+                const SizedBox(height: 24),
+                Text(
+                  'Sincronizando $count marca${count > 1 ? 's' : ''} pendiente${count > 1 ? 's' : ''}...',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    try {
+      SyncResult result = await _offlineSync.syncPendingAttendances();
+      
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      await _checkPendingSync();
+      await _refreshAttendanceStatus();
+
+      if (mounted) {
+        if (result.success) {
+          _showSuccessSyncDialog(result);
+        } else {
+          _showErrorDialog(context, result.message);
+        }
+      }
+    } catch (e) {
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      if (mounted) {
+        _showErrorDialog(context, 'Error al sincronizar: $e');
+      }
+    }
   }
 
   @override
@@ -115,13 +195,52 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
           ),
         ),
         actions: [
+          if (_pendingSyncCount > 0)
+            FadeInDown(
+              delay: const Duration(milliseconds: 100),
+              child: IconButton(
+                icon: Stack(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.cloud_upload, size: 20, color: Colors.orange),
+                    ),
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$_pendingSyncCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                onPressed: _syncPendingAttendances,
+                tooltip: 'Sincronizar marcas pendientes',
+              ),
+            ),
           FadeInDown(
             delay: const Duration(milliseconds: 200),
             child: IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.logout, size: 20, color: Colors.white),
@@ -135,7 +254,6 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
         builder: (context, authService, _) {
           final user = authService.currentUser;
 
-          // 🆕 Si el usuario cambió (ej: después de login), refrescar estado
           if (user != null && !_hasInitialized) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _checkTodayAttendanceStatus();
@@ -167,17 +285,16 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                     children: [
                       const SizedBox(height: 20),
                       
-                      // User info card
                       FadeInDown(
                         delay: const Duration(milliseconds: 300),
                         child: Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.95),
+                            color: Colors.white.withOpacity(0.95),
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
+                                color: Colors.black.withOpacity(0.1),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
                               ),
@@ -195,7 +312,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: AppColors.primary.withValues(alpha: 0.3),
+                                      color: AppColors.primary.withOpacity(0.3),
                                       blurRadius: 12,
                                       offset: const Offset(0, 4),
                                     ),
@@ -228,7 +345,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary.withValues(alpha: 0.1),
+                                        color: AppColors.primary.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Text(
@@ -250,7 +367,6 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
 
                       const SizedBox(height: 24),
 
-                      // Status card
                       FadeInUp(
                         delay: const Duration(milliseconds: 400),
                         child: Container(
@@ -260,7 +376,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.1),
+                                color: AppColors.primary.withOpacity(0.1),
                                 blurRadius: 15,
                                 offset: const Offset(0, 5),
                               ),
@@ -273,7 +389,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                                   Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: 0.1),
+                                      color: AppColors.primary.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: const Icon(Icons.location_on, color: AppColors.primary, size: 22),
@@ -289,9 +405,8 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                                       ),
                                     ),
                                   ),
-                                  // 🆕 Botón de refrescar
                                   IconButton(
-                                    icon: Icon(
+                                    icon: const Icon(
                                       Icons.refresh,
                                       color: AppColors.primary,
                                       size: 20,
@@ -310,7 +425,6 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
 
                       const SizedBox(height: 32),
 
-                      // Check-in/out buttons
                       FadeInUp(
                         delay: const Duration(milliseconds: 500),
                         child: Row(
@@ -324,7 +438,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                                 icon: _hasCheckedInToday ? Icons.check_circle : Icons.login,
                                 gradient: _hasCheckedInToday 
                                     ? [Colors.grey, Colors.grey.shade400]
-                                    : [AppColors.success, AppColors.success.withValues(alpha: 0.7)],
+                                    : [AppColors.success, AppColors.success.withOpacity(0.7)],
                                 isLoading: _isProcessingLocation && !_hasCheckedInToday,
                               ),
                             ),
@@ -333,12 +447,22 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                               child: _buildActionButton(
                                 onPressed: (_isProcessingLocation || _isLoadingStatus || _hasCheckedOutToday) 
                                     ? null 
-                                    : () => _handleMarkAttendance(context, 'salida'),
+                                    : () {
+                                        if (!_hasCheckedInToday) {
+                                          _showWarningDialog(
+                                            context, 
+                                            'Debes marcar entrada primero', 
+                                            'No puedes marcar salida sin haber marcado entrada.'
+                                          );
+                                        } else {
+                                          _handleMarkAttendance(context, 'salida');
+                                        }
+                                      },
                                 label: _hasCheckedOutToday ? 'Salida\nRegistrada' : 'Marcar\nSalida',
                                 icon: _hasCheckedOutToday ? Icons.check_circle : Icons.logout,
                                 gradient: _hasCheckedOutToday 
                                     ? [Colors.grey, Colors.grey.shade400]
-                                    : [AppColors.error, AppColors.error.withValues(alpha: 0.7)],
+                                    : [AppColors.error, AppColors.error.withOpacity(0.7)],
                                 isLoading: _isProcessingLocation && !_hasCheckedOutToday,
                               ),
                             ),
@@ -348,7 +472,6 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
 
                       const SizedBox(height: 32),
 
-                      // Menu options
                       FadeInUp(
                         delay: const Duration(milliseconds: 600),
                         child: Container(
@@ -357,7 +480,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
+                                color: Colors.black.withOpacity(0.05),
                                 blurRadius: 15,
                                 offset: const Offset(0, 5),
                               ),
@@ -428,7 +551,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
         boxShadow: onPressed != null
             ? [
                 BoxShadow(
-                  color: gradient[0].withValues(alpha: 0.3),
+                  color: gradient[0].withOpacity(0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 6),
                 ),
@@ -482,7 +605,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
       leading: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: color, size: 24),
@@ -559,7 +682,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
           duration: const Duration(milliseconds: 300),
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: isCompleted ? activeColor.withValues(alpha: 0.1) : Colors.transparent,
+            color: isCompleted ? activeColor.withOpacity(0.1) : Colors.transparent,
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -591,7 +714,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.1),
+                color: AppColors.error.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.logout, color: AppColors.error, size: 24),
@@ -698,7 +821,6 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
         Navigator.of(context).pop();
       }
 
-      // 🆕 Refrescar estado desde Firestore después de marcar asistencia
       await _refreshAttendanceStatus();
 
       if (context.mounted) {
@@ -711,8 +833,13 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
       }
 
       if (context.mounted) {
-        String errorMsg = _getAttendanceErrorMessage(e);
-        _showErrorDialog(context, errorMsg);
+        if (e is OfflineException) {
+          await _checkPendingSync();
+          _showOfflineSuccessDialog(context, e.message);
+        } else {
+          String errorMsg = _getAttendanceErrorMessage(e);
+          _showErrorDialog(context, errorMsg);
+        }
       }
     } finally {
       setState(() {
@@ -731,7 +858,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.1),
+                color: AppColors.warning.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.warning, color: AppColors.warning, size: 24),
@@ -766,7 +893,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.1),
+                color: AppColors.success.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.check_circle, color: AppColors.success, size: 24),
@@ -827,9 +954,9 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.1),
+                  color: AppColors.success.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                  border: Border.all(color: AppColors.success.withOpacity(0.3)),
                 ),
                 child: const Row(
                   children: [
@@ -895,7 +1022,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.1),
+                color: AppColors.error.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.error_outline, color: AppColors.error, size: 24),
@@ -982,7 +1109,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.1),
+                color: AppColors.success.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.gps_fixed, color: AppColors.success, size: 24),
@@ -1064,6 +1191,109 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
           ),
         ),
       ],
+    );
+  }
+
+  void _showSuccessSyncDialog(SyncResult result) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.cloud_done, color: AppColors.success, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: Text('Sincronización Completa', style: TextStyle(fontSize: 18))),
+          ],
+        ),
+        content: Text(
+          '${result.synced} marca${result.synced > 1 ? 's' : ''} sincronizada${result.synced > 1 ? 's' : ''} exitosamente.',
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showOfflineSuccessDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.cloud_off, color: Colors.orange, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text('Guardado Offline', style: TextStyle(fontSize: 18)),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(message),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'La validación de ubicación se realizará al sincronizar',
+                        style: TextStyle(fontSize: 12, color: Colors.orange),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
     );
   }
 }

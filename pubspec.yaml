@@ -23,6 +23,7 @@ dependencies:
   # State management & utilities
   provider: ^6.1.1
   shared_preferences: ^2.2.2
+  connectivity_plus: ^5.0.2
   
   # Nuevas librerías para diseño moderno
   animate_do: ^3.3.4

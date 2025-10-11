@@ -1,12 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../models/attendance_model.dart';
 import '../models/worksite_model.dart';
 import 'location_service.dart';
+import 'offline_sync_service.dart';
 
 class AttendanceService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final LocationService _locationService = LocationService();
+  final OfflineSyncService _offlineSync = OfflineSyncService();
+  
+  static const String _cachedWorksitePrefix = 'cached_worksite_';
 
   /// Registrar entrada del trabajador
   Future<String> markCheckIn({
@@ -14,16 +20,16 @@ class AttendanceService {
     required String worksiteId,
   }) async {
     try {
-      // Obtener ubicación actual
+      // 1️⃣ Obtener ubicación actual
       Position? position = await _locationService.getCurrentLocation();
       if (position == null) {
         throw Exception('No se pudo obtener la ubicación GPS');
       }
 
-      // Obtener datos de la obra para validar geofence
+      // 2️⃣ Obtener datos de la obra para validar geofence
       WorksiteModel worksite = await _getWorksite(worksiteId);
 
-      // 🔍 VALIDACIÓN: Verificar que las coordenadas sean válidas
+      // 3️⃣ VALIDACIÓN: Verificar que las coordenadas sean válidas
       if (!_areValidCoordinates(worksite.latitude, worksite.longitude)) {
         throw Exception(
           '⚠️ ERROR DE CONFIGURACIÓN:\n'
@@ -33,7 +39,7 @@ class AttendanceService {
         );
       }
 
-      // Validar que esté dentro del perímetro
+      // 4️⃣ Validar que esté dentro del perímetro
       bool isWithinWorksite = _locationService.isWithinWorksite(
         userPosition: position,
         worksiteLat: worksite.latitude,
@@ -57,33 +63,50 @@ class AttendanceService {
       print('¿Dentro?: $isWithinWorksite');
       print('─────────────────────────────');
 
-      // Crear registro del intento (válido o no)
-      PunchRecord punchIn = PunchRecord(
-        timestamp: DateTime.now(),
-        location: GeoPoint(position.latitude, position.longitude),
-        isValid: isWithinWorksite,
-      );
-
-      // SI NO ESTÁ DENTRO: Guardar intento fallido
+      // 5️⃣ SI NO ESTÁ DENTRO: Rechazar (NO guardar nada)
       if (!isWithinWorksite) {
-        await _recordFailedCheckInAttempt(
-          workerId: workerId,
-          worksiteId: worksiteId,
-          punchIn: punchIn,
-          distance: distance,
-          allowedRadius: worksite.radius,
-        );
-
         String distanceText = _formatDistance(distance);
         throw Exception(
           'Estás fuera del perímetro permitido para "${worksite.name}".\n\n'
           '📍 Tu distancia: $distanceText\n'
           '✅ Permitido: ${worksite.radius.toStringAsFixed(0)}m\n\n'
-          'Intento registrado como "Intento Fallido".'
+          'Acércate a la obra para marcar asistencia.'
         );
       }
 
-      // SI ESTÁ DENTRO: Crear documento de asistencia exitosa
+      // 6️⃣ Verificar conexión a internet
+      bool hasConnection = await _offlineSync.hasInternetConnection();
+      
+      if (!hasConnection) {
+        // 📵 MODO OFFLINE: Guardar localmente (ya validado)
+        print('📵 Sin conexión. Guardando entrada offline validada...');
+        String tempId = await _offlineSync.savePendingAttendance(
+          workerId: workerId,
+          worksiteId: worksiteId,
+          type: 'checkIn',
+          position: position,
+          timestamp: DateTime.now(),
+          isValid: true, // ✅ Ya validamos que está dentro
+        );
+        
+        throw OfflineException(
+          'Entrada guardada sin conexión.\n\n'
+          '✅ Ubicación validada: Dentro de la obra\n'
+          '📵 Se sincronizará automáticamente cuando recuperes internet.\n\n'
+          '📍 Ubicación: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}\n'
+          '🕒 Hora: ${DateTime.now().toString().substring(11, 16)}',
+          tempId: tempId,
+        );
+      }
+
+      // 7️⃣ Con internet: Guardar en Firestore
+      // Crear registro del intento válido
+      PunchRecord punchIn = PunchRecord(
+        timestamp: DateTime.now(),
+        location: GeoPoint(position.latitude, position.longitude),
+        isValid: true, // ✅ Ya validamos que está dentro
+      );
+
       String attendanceId = await _getOrCreateTodayAttendance(
         workerId: workerId,
         worksiteId: worksiteId,
@@ -104,16 +127,16 @@ class AttendanceService {
     required String worksiteId,
   }) async {
     try {
-      // Obtener ubicación actual
+      // 1️⃣ Obtener ubicación actual
       Position? position = await _locationService.getCurrentLocation();
       if (position == null) {
         throw Exception('No se pudo obtener la ubicación GPS');
       }
 
-      // Obtener datos de la obra para validar geofence
+      // 2️⃣ Obtener datos de la obra para validar geofence
       WorksiteModel worksite = await _getWorksite(worksiteId);
 
-      // 🔍 VALIDACIÓN: Verificar que las coordenadas sean válidas
+      // 3️⃣ VALIDACIÓN: Verificar que las coordenadas sean válidas
       if (!_areValidCoordinates(worksite.latitude, worksite.longitude)) {
         throw Exception(
           '⚠️ ERROR DE CONFIGURACIÓN:\n'
@@ -122,7 +145,7 @@ class AttendanceService {
         );
       }
 
-      // Validar que esté dentro del perímetro
+      // 4️⃣ Validar que esté dentro del perímetro
       bool isWithinWorksite = _locationService.isWithinWorksite(
         userPosition: position,
         worksiteLat: worksite.latitude,
@@ -146,33 +169,50 @@ class AttendanceService {
       print('¿Dentro?: $isWithinWorksite');
       print('─────────────────────────────');
 
-      // Crear registro del intento (válido o no)
-      PunchRecord punchOut = PunchRecord(
-        timestamp: DateTime.now(),
-        location: GeoPoint(position.latitude, position.longitude),
-        isValid: isWithinWorksite,
-      );
-
-      // SI NO ESTÁ DENTRO: Guardar intento fallido de salida
+      // 5️⃣ SI NO ESTÁ DENTRO: Rechazar (NO guardar nada)
       if (!isWithinWorksite) {
-        await _recordFailedCheckOutAttempt(
-          workerId: workerId,
-          worksiteId: worksiteId,
-          punchOut: punchOut,
-          distance: distance,
-          allowedRadius: worksite.radius,
-        );
-
         String distanceText = _formatDistance(distance);
         throw Exception(
           'Estás fuera del perímetro permitido para "${worksite.name}".\n\n'
           '📍 Tu distancia: $distanceText\n'
           '✅ Permitido: ${worksite.radius.toStringAsFixed(0)}m\n\n'
-          'Intento registrado como "Intento Fallido".'
+          'Acércate a la obra para marcar salida.'
         );
       }
 
-      // SI ESTÁ DENTRO: Actualizar documento de asistencia exitosa
+      // 6️⃣ Verificar conexión a internet
+      bool hasConnection = await _offlineSync.hasInternetConnection();
+      
+      if (!hasConnection) {
+        // 📵 MODO OFFLINE: Guardar localmente (ya validado)
+        print('📵 Sin conexión. Guardando salida offline validada...');
+        String tempId = await _offlineSync.savePendingAttendance(
+          workerId: workerId,
+          worksiteId: worksiteId,
+          type: 'checkOut',
+          position: position,
+          timestamp: DateTime.now(),
+          isValid: true, // ✅ Ya validamos que está dentro
+        );
+        
+        throw OfflineException(
+          'Salida guardada sin conexión.\n\n'
+          '✅ Ubicación validada: Dentro de la obra\n'
+          '📵 Se sincronizará automáticamente cuando recuperes internet.\n\n'
+          '📍 Ubicación: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}\n'
+          '🕒 Hora: ${DateTime.now().toString().substring(11, 16)}',
+          tempId: tempId,
+        );
+      }
+
+      // 7️⃣ Con internet: Actualizar en Firestore
+      // Crear registro del intento válido
+      PunchRecord punchOut = PunchRecord(
+        timestamp: DateTime.now(),
+        location: GeoPoint(position.latitude, position.longitude),
+        isValid: true, // ✅ Ya validamos que está dentro
+      );
+
       String attendanceId = await _updateTodayAttendance(
         workerId: workerId,
         worksiteId: worksiteId,
@@ -203,97 +243,6 @@ class AttendanceService {
     } else {
       return '${meters.toStringAsFixed(0)} m';
     }
-  }
-
-  /// Registrar intento fallido de entrada (fuera del perímetro)
-  Future<String> _recordFailedCheckInAttempt({
-    required String workerId,
-    required String worksiteId,
-    required PunchRecord punchIn,
-    required double distance,
-    required double allowedRadius,
-  }) async {
-    DateTime today = DateTime.now();
-    DateTime startOfDay = DateTime(today.year, today.month, today.day);
-    DateTime endOfDay = startOfDay.add(const Duration(days: 1));
-
-    QuerySnapshot query = await _firestore
-        .collection('attendances')
-        .where('workerId', isEqualTo: workerId)
-        .where('worksiteId', isEqualTo: worksiteId)
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-        .where('date', isLessThan: Timestamp.fromDate(endOfDay))
-        .limit(1)
-        .get();
-
-    String failureReason = 'Fuera del perímetro: ${_formatDistance(distance)} de ${allowedRadius.toStringAsFixed(0)}m permitidos';
-
-    if (query.docs.isNotEmpty) {
-      DocumentSnapshot doc = query.docs.first;
-      await doc.reference.update({
-        'punchIn': punchIn.toMap(),
-        'status': 'Intento Fallido',
-        'failureReason': failureReason,
-        'lastAttempt': Timestamp.now(),
-      });
-      return doc.id;
-    } else {
-      AttendanceModel attendance = AttendanceModel(
-        workerId: workerId,
-        worksiteId: worksiteId,
-        date: today,
-        punchIn: punchIn,
-        status: 'Intento Fallido',
-      );
-
-      Map<String, dynamic> data = attendance.toFirestore();
-      data['failureReason'] = failureReason;
-      data['lastAttempt'] = Timestamp.now();
-
-      DocumentReference docRef = await _firestore
-          .collection('attendances')
-          .add(data);
-      
-      return docRef.id;
-    }
-  }
-
-  /// Registrar intento fallido de salida (fuera del perímetro)
-  Future<String> _recordFailedCheckOutAttempt({
-    required String workerId,
-    required String worksiteId,
-    required PunchRecord punchOut,
-    required double distance,
-    required double allowedRadius,
-  }) async {
-    DateTime today = DateTime.now();
-    DateTime startOfDay = DateTime(today.year, today.month, today.day);
-    DateTime endOfDay = startOfDay.add(const Duration(days: 1));
-
-    QuerySnapshot query = await _firestore
-        .collection('attendances')
-        .where('workerId', isEqualTo: workerId)
-        .where('worksiteId', isEqualTo: worksiteId)
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-        .where('date', isLessThan: Timestamp.fromDate(endOfDay))
-        .limit(1)
-        .get();
-
-    if (query.docs.isEmpty) {
-      throw Exception('No se encontró registro de entrada para hoy. Marca tu entrada primero.');
-    }
-
-    String failureReason = 'Salida fuera del perímetro: ${_formatDistance(distance)} de ${allowedRadius.toStringAsFixed(0)}m permitidos';
-
-    DocumentSnapshot doc = query.docs.first;
-    await doc.reference.update({
-      'punchOut': punchOut.toMap(),
-      'status': 'Intento Fallido',
-      'failureReason': failureReason,
-      'lastAttempt': Timestamp.now(),
-    });
-
-    return doc.id;
   }
 
   /// Obtener o crear documento de asistencia para hoy (entrada exitosa)
@@ -397,21 +346,97 @@ class AttendanceService {
     return doc.id;
   }
 
-  /// Obtener datos de la obra
+  /// Obtener datos de la obra (con caché offline)
   Future<WorksiteModel> _getWorksite(String worksiteId) async {
-    DocumentSnapshot doc = await _firestore
-        .collection('worksites')
-        .doc(worksiteId)
-        .get();
-    
-    if (!doc.exists) {
-      throw Exception('Obra no encontrada');
-    }
+    try {
+      // 1️⃣ Intentar obtener desde Firestore
+      DocumentSnapshot doc = await _firestore
+          .collection('worksites')
+          .doc(worksiteId)
+          .get()
+          .timeout(const Duration(seconds: 5));
+      
+      if (!doc.exists) {
+        throw Exception('Obra no encontrada');
+      }
 
-    return WorksiteModel.fromFirestore(
-      doc.data() as Map<String, dynamic>,
-      doc.id,
-    );
+      WorksiteModel worksite = WorksiteModel.fromFirestore(
+        doc.data() as Map<String, dynamic>,
+        doc.id,
+      );
+
+      // 2️⃣ Guardar en caché local
+      await _cacheWorksite(worksiteId, worksite);
+      print('✅ Obra obtenida de Firestore y guardada en caché');
+      
+      return worksite;
+    } catch (e) {
+      print('⚠️ Error obteniendo obra de Firestore: $e');
+      print('📦 Intentando cargar desde caché local...');
+      
+      // 3️⃣ Si falla (sin internet), cargar desde caché
+      WorksiteModel? cachedWorksite = await _getCachedWorksite(worksiteId);
+      
+      if (cachedWorksite != null) {
+        print('✅ Obra cargada desde caché local');
+        return cachedWorksite;
+      } else {
+        throw Exception('Sin conexión y sin datos de la obra en caché. Conecta a internet al menos una vez.');
+      }
+    }
+  }
+
+  /// Guardar obra en caché local
+  Future<void> _cacheWorksite(String worksiteId, WorksiteModel worksite) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      Map<String, dynamic> worksiteData = {
+        'id': worksite.id,
+        'name': worksite.name,
+        'latitude': worksite.latitude,
+        'longitude': worksite.longitude,
+        'radius': worksite.radius,
+        'cachedAt': DateTime.now().toIso8601String(),
+      };
+      
+      await prefs.setString(
+        '$_cachedWorksitePrefix$worksiteId',
+        jsonEncode(worksiteData),
+      );
+    } catch (e) {
+      print('❌ Error guardando obra en caché: $e');
+    }
+  }
+
+  /// Obtener obra desde caché local
+  Future<WorksiteModel?> _getCachedWorksite(String worksiteId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? cachedData = prefs.getString('$_cachedWorksitePrefix$worksiteId');
+      
+      if (cachedData == null) {
+        print('❌ No hay caché disponible para esta obra');
+        return null;
+      }
+
+      Map<String, dynamic> data = jsonDecode(cachedData);
+      
+      // Recrear el modelo usando fromFirestore para compatibilidad
+      return WorksiteModel.fromFirestore(
+        {
+          'name': data['name'],
+          'latitude': data['latitude'],
+          'longitude': data['longitude'],
+          'radius': data['radius'],
+          'isActive': true,
+        },
+        data['id'],
+      );
+    } catch (e) {
+      print('❌ Error leyendo obra desde caché: $e');
+      return null;
+    }
   }
 
   /// Obtener historial de asistencia del trabajador
@@ -477,7 +502,7 @@ class AttendanceService {
       }
     }
 
-    print('❌ No se encontró entrada exitosa (solo intentos fallidos)');
+    print('❌ No se encontró entrada exitosa');
     print('=====================================');
     return false;
   }
@@ -527,4 +552,15 @@ class AttendanceService {
     print('=====================================');
     return false;
   }
+}
+
+/// Excepción personalizada para modo offline
+class OfflineException implements Exception {
+  final String message;
+  final String tempId;
+
+  OfflineException(this.message, {required this.tempId});
+
+  @override
+  String toString() => message;
 }
