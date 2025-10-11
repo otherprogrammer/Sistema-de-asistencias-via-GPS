@@ -9,7 +9,6 @@ const WorksitesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
 
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
@@ -23,15 +22,15 @@ const WorksitesPage: React.FC = () => {
       const worksitesData = await worksitesService.getAllWorksites();
       setWorksites(worksitesData);
       setError('');
-    } catch (error: any) {
-      setError('Error cargando obras: ' + error.message);
+    } catch (error) {
+      setError('Error cargando obras: ' + (error as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadWorksites();
+    void loadWorksites();
   }, []);
 
   // Filtrar obras
@@ -40,12 +39,7 @@ const WorksitesPage: React.FC = () => {
       worksite.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       worksite.worksiteId.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus =
-      filterStatus === 'all' ||
-      (filterStatus === 'active' && worksite.isActive) ||
-      (filterStatus === 'inactive' && !worksite.isActive);
-
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   // Handlers de modal
@@ -97,7 +91,7 @@ const WorksitesPage: React.FC = () => {
 
   const copyCoordinates = (worksite: Worksite) => {
     const coordinates = `${worksite.latitude}, ${worksite.longitude}`;
-    navigator.clipboard.writeText(coordinates);
+    void navigator.clipboard.writeText(coordinates);
     // Puedes agregar una notificación aquí
     alert(`Coordenadas copiadas: ${coordinates}`);
   };
@@ -202,18 +196,18 @@ const WorksitesPage: React.FC = () => {
             // Estado vacío
             <div className="p-16 text-center">
               <h3 className="text-2xl font-bold text-gray-800 mb-4">
-                {searchTerm || filterStatus !== 'all'
+                {searchTerm
                   ? 'No se encontraron obras'
                   : 'No hay obras creadas'}
               </h3>
 
               <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto">
-                {searchTerm || filterStatus !== 'all'
+                {searchTerm
                   ? 'Intenta cambiar los filtros de búsqueda para encontrar más resultados'
                   : 'Comienza creando tu primera obra con su respectivo geofence'}
               </p>
 
-              {!searchTerm && filterStatus === 'all' && (
+              {!searchTerm && (
                 <button
                   onClick={handleCreateWorksite}
                   className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-3 mx-auto"
@@ -313,7 +307,7 @@ const WorksitesPage: React.FC = () => {
                         <div className="flex justify-center space-x-2">
                           <button
                             onClick={() => handleViewWorksite(worksite)}
-                            className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-all duration-200 transform hover:scale-105 flex items-center space-x-1 shadow-sm font-medium"
+                            className="inline-flex items-center p-2 border border-transparent text-sm font-medium rounded-lg text-[#2D6EA4] bg-[#2D6EA4]/10 hover:bg-[#2D6EA4]/20 transition-colors duration-200"
                             title="Ver detalles"
                           >
                             <span>Ver</span>
@@ -321,7 +315,7 @@ const WorksitesPage: React.FC = () => {
 
                           <button
                             onClick={() => handleEditWorksite(worksite)}
-                            className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all duration-200 transform hover:scale-105 flex items-center space-x-1 shadow-sm font-medium"
+                            className="inline-flex items-center p-2 border border-transparent text-sm font-medium rounded-lg text-yellow-700 bg-yellow-100 hover:bg-yellow-200 transition-colors duration-200"
                             title="Editar obra"
                           >
                             <span>Editar</span>

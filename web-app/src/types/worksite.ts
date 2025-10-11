@@ -1,11 +1,13 @@
+import type { Timestamp } from "firebase/firestore";
+
 export interface Worksite {
   worksiteId: string;
   name: string;
   latitude: number;
   longitude: number;
   radius: number;
-  createdAt?: any;
-  updatedAt?: any;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
   isActive?: boolean;
 }
 

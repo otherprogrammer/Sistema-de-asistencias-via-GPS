@@ -16,7 +16,6 @@ export class WorksitesService {
   // Obtener todas las obras
   async getAllWorksites(): Promise<Worksite[]> {
     try {
-      console.log('Cargando todas las obras...');
       const querySnapshot = await getDocs(collection(db, this.COLLECTION_NAME));
 
       const worksites = querySnapshot.docs.map(
@@ -26,8 +25,6 @@ export class WorksitesService {
             ...doc.data(),
           }) as Worksite,
       );
-
-      console.log(`Encontradas ${worksites.length} obras`);
       return worksites;
     } catch (error) {
       console.error('Error obteniendo obras:', error);

@@ -1,3 +1,5 @@
+import type { GeoPoint, Timestamp } from "firebase/firestore";
+
 export interface AttendanceRecord {
   id: string;
   workerId: string;
@@ -5,22 +7,25 @@ export interface AttendanceRecord {
   workerDNI: string;
   worksiteId: string;
   worksiteName: string;
-  checkInTime: Date;
-  checkOutTime?: Date;
-  status: 'present' | 'absent' | 'outside' | 'late';
-  latitude?: number;
-  longitude?: number;
-  totalHours?: number;
-  date: Date;
+  punchIn: {
+    timestamp: Timestamp;
+    location: GeoPoint;
+  };
+  punchOut: {
+    timestamp: Timestamp;
+    location: GeoPoint;
+  };
+  status: 'Presente' | 'Ausente' | 'Intento Fallido' | 'Tarde';
+  workedHours?: number;
+  date: Timestamp;
 }
 
 export interface WorkerAttendanceStatus {
   workerId: string;
   workerName: string;
   workerDNI: string;
-  worksiteId: string | null;
-  worksiteName: string | null;
-  status: 'present' | 'absent' | 'outside';
+  worksiteId: string;
+  status: 'Presente' | 'Ausente' | 'Intento Fallido' | 'Fuera de obra' | 'Tarde';
   lastCheckIn?: Date;
   lastCheckOut?: Date;
   isInsideGeofence: boolean;
