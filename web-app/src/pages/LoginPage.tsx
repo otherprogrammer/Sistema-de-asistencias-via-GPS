@@ -13,7 +13,7 @@ const LoginPage: React.FC = () => {
   const location = useLocation();
 
   // Obtener la página desde donde vino (si fue redirigido)
-  const from = location.pathname || '/gestion-trabajadores';
+  const from = location.pathname || '/dashboard';
 
   const handleLogin = async () => {
     if (!email || !password) {

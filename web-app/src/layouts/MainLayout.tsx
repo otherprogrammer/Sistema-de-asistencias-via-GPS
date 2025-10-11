@@ -18,10 +18,10 @@ const MainLayout: React.FC = () => {
   };
 
   const menuItems = [
+    { path: '/dashboard', label: 'Registro de Asistencias', icon: '📅' },
     { path: '/gestion-trabajadores', label: 'Gestión de Trabajadores', icon: '📊' },
     { path: '/gestion-obras', label: 'Gestión de Obras', icon: '🏗️' },
-    { path: '/registro-asistencias', label: 'Registro de Asistencias', icon: '📅' },
-    { path: '/justificacion-asistencias', label: 'Justificación de Asistencias', icon: '✍️' },
+    /* { path: '/justificacion-asistencias', label: 'Justificación de Asistencias', icon: '✍️' }, */
   ];
 
   return (

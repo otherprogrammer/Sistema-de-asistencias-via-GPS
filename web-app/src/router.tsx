@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
 import AdminWorkers from './pages/AdminWorker';
 import WorksitesPage from './pages/WorksitesPage';
+import AttendancePage from './pages/AttendancesPage';
 
 export const AppRouter = () => {
   return (
@@ -35,7 +36,7 @@ export const AppRouter = () => {
           <Route index element={<AdminWorkers />} />
           <Route path="gestion-trabajadores" element={<AdminWorkers />} />
           <Route path="gestion-obras" element={<WorksitesPage />} />
-          <Route path="registro-asistencias" element={<WorksitesPage />} />
+          <Route path="dashboard" element={<AttendancePage />} />
           <Route path="justificacion-asistencias" element={<WorksitesPage />} />
         </Route>
 

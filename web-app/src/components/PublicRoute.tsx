@@ -14,7 +14,7 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
   }
 
   if (user && isAdmin) {
-    return <Navigate to="/gestion-trabajadores" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
