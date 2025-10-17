@@ -6,8 +6,9 @@ class UserModel {
   final String fullName;
   final String? assignedWorksiteId;
   final bool isActive;
-  final bool hasChangedPassword; // Nuevo campo
-  final bool hasSelectedWorksite; // Nuevo campo
+  final bool hasChangedPassword;
+  final bool hasSelectedWorksite;
+  final bool? faceRegistered; // 🆕 Campo para reconocimiento facial
 
   UserModel({
     required this.uid,
@@ -19,6 +20,7 @@ class UserModel {
     this.isActive = true,
     this.hasChangedPassword = false,
     this.hasSelectedWorksite = false,
+    this.faceRegistered, // 🆕
   });
 
   factory UserModel.fromFirestore(Map<String, dynamic> data, String uid) {
@@ -32,6 +34,7 @@ class UserModel {
       isActive: data['isActive'] ?? true,
       hasChangedPassword: data['hasChangedPassword'] ?? false,
       hasSelectedWorksite: data['hasSelectedWorksite'] ?? false,
+      faceRegistered: data['faceRegistered'], // 🆕
     );
   }
 
@@ -45,9 +48,16 @@ class UserModel {
       'isActive': isActive,
       'hasChangedPassword': hasChangedPassword,
       'hasSelectedWorksite': hasSelectedWorksite,
+      if (faceRegistered != null) 'faceRegistered': faceRegistered, // 🆕 Solo si no es null
     };
   }
 
   bool get isWorker => role == 'trabajador';
   bool get isAdmin => role == 'admin';
+  
+  // 🆕 Getter para verificar si completó el onboarding
+  bool get hasCompletedOnboarding => 
+      hasChangedPassword && 
+      hasSelectedWorksite && 
+      (faceRegistered ?? false);
 }

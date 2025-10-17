@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_gps/screens/worker/change_password_screen.dart';
 import 'package:flutter_gps/screens/worker/select_worksite_screen.dart';
+import 'package:flutter_gps/screens/worker/face_registration_screen.dart'; // 🆕
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
+import 'services/tflite_service.dart'; // 🆕
 import 'screens/login/login_screen.dart';
 import 'screens/worker/worker_home_screen.dart';
 import 'constants/app_colors.dart';
@@ -12,10 +14,15 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase with Gabriel's configuration
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // 🆕 Inicializar TFLite en segundo plano
+  TFLiteService().initialize().catchError((e) {
+    print('⚠️ Error inicializando TFLite en main: $e');
+  });
   
   runApp(const MyApp());
 }
@@ -30,7 +37,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthService()),
       ],
       child: MaterialApp(
-        title: 'Control Asistencia GPS',
+        title: 'Crellat Asistencia', // 🆕 Nombre actualizado
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           primarySwatch: AppColors.primarySwatch,
@@ -51,6 +58,7 @@ class MyApp extends StatelessWidget {
           '/': (context) => const AuthWrapper(),
           '/change-password': (context) => const ChangePasswordScreen(isFirstTime: true),
           '/select-worksite': (context) => const SelectWorksiteScreen(),
+          '/face-registration': (context) => const FaceRegistrationScreen(), // 🆕
           '/home': (context) => const WorkerHomeScreen(),
         },
       ),
@@ -87,21 +95,28 @@ class AuthWrapper extends StatelessWidget {
           print('   - hasChangedPassword: ${user.hasChangedPassword}');
           print('   - hasSelectedWorksite: ${user.hasSelectedWorksite}');
           print('   - assignedWorksiteId: ${user.assignedWorksiteId}');
+          print('   - faceRegistered: ${user.faceRegistered ?? false}'); // 🆕
           
-          // Si no ha cambiado contraseña, ir a cambio obligatorio
+          // 1️⃣ Si no ha cambiado contraseña, ir a cambio obligatorio
           if (!user.hasChangedPassword) {
             print('🔐 Redirigiendo a ChangePasswordScreen (obligatorio)');
             return const ChangePasswordScreen(isFirstTime: true);
           }
           
-          // Si no ha seleccionado obra, ir a selección
+          // 2️⃣ Si no ha seleccionado obra, ir a selección
           if (!user.hasSelectedWorksite || user.assignedWorksiteId == null) {
             print('🏗️ Redirigiendo a SelectWorksiteScreen');
             return const SelectWorksiteScreen();
           }
+
+          // 3️⃣ 🆕 Si no ha registrado rostro, ir a registro facial
+          if (user.faceRegistered != true) {
+            print('📸 Redirigiendo a FaceRegistrationScreen');
+            return const FaceRegistrationScreen();
+          }
         }
 
-        // Si ya completó setup o es admin, ir a home
+        // Si ya completó setup completo o es admin, ir a home
         print('✅ Setup completo - Mostrando WorkerHomeScreen');
         return const WorkerHomeScreen();
       },

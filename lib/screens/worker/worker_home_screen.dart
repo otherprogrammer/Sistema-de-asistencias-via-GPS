@@ -13,6 +13,9 @@ import 'worker_history_screen.dart';
 import 'change_password_screen.dart';
 import '../../services/offline_sync_service.dart';
 import 'dart:async';
+import '../../services/face_recognition_service.dart';
+import 'face_capture_screen.dart';
+import 'dart:io';
 
 class WorkerHomeScreen extends StatefulWidget {
   const WorkerHomeScreen({super.key});
@@ -25,6 +28,8 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
   final LocationService _locationService = LocationService();
   final AttendanceService _attendanceService = AttendanceService();
   final OfflineSyncService _offlineSync = OfflineSyncService();
+  final FaceRecognitionService _faceRecognitionService = FaceRecognitionService();
+
   int _pendingSyncCount = 0;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isProcessingLocation = false;
@@ -747,40 +752,137 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
   }
 
   Future<void> _handleMarkAttendance(BuildContext context, String type) async {
-    if (_isProcessingLocation) return;
+  if (_isProcessingLocation) return;
 
-    final authService = context.read<AuthService>();
-    final user = authService.currentUser;
-    
-    if (user == null || user.assignedWorksiteId == null) {
-      _showErrorDialog(context, 'Usuario o obra no válidos');
+  final authService = context.read<AuthService>();
+  final user = authService.currentUser;
+  
+  if (user == null || user.assignedWorksiteId == null) {
+    _showErrorDialog(context, 'Usuario o obra no válidos');
+    return;
+  }
+
+  if (type == 'entrada' && _hasCheckedInToday) {
+    _showWarningDialog(context, 'Ya registraste tu entrada hoy', 
+        'Solo puedes marcar una entrada por día.');
+    return;
+  }
+
+  if (type == 'salida') {
+    if (!_hasCheckedInToday) {
+      _showWarningDialog(context, 'Debes marcar entrada primero', 
+          'No puedes marcar salida sin haber marcado entrada.');
+      return;
+    }
+    if (_hasCheckedOutToday) {
+      _showWarningDialog(context, 'Ya registraste tu salida hoy', 
+          'Solo puedes marcar una salida por día.');
+      return;
+    }
+  }
+
+  setState(() {
+    _isProcessingLocation = true;
+  });
+
+  try {
+    // 🆕 PASO 1: VERIFICACIÓN FACIAL
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.face, color: AppColors.primary, size: 60),
+              const SizedBox(height: 24),
+              Text(
+                'Verificando identidad...',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Abrir cámara para captura de rostro
+    if (context.mounted) {
+      Navigator.of(context).pop(); // Cerrar diálogo de "verificando"
+    }
+
+    final File? capturedImage = await Navigator.of(context).push<File>(
+      MaterialPageRoute(
+        builder: (context) => FaceCaptureScreen(
+          isRegistration: false,
+          title: 'Verifica tu identidad',
+        ),
+      ),
+    );
+
+    if (capturedImage == null) {
+      // Usuario canceló
+      setState(() {
+        _isProcessingLocation = false;
+      });
       return;
     }
 
-    if (type == 'entrada' && _hasCheckedInToday) {
-      _showWarningDialog(context, 'Ya registraste tu entrada hoy', 
-          'Solo puedes marcar una entrada por día.');
+    // Mostrar diálogo de procesamiento
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: const Padding(
+            padding: EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SpinKitFadingCircle(color: AppColors.primary, size: 60),
+                SizedBox(height: 24),
+                Text(
+                  'Verificando rostro...',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Verificar rostro
+    FaceVerificationResult verificationResult = await _faceRecognitionService.verifyFace(
+      userId: user.uid,
+      capturedImage: capturedImage,
+    );
+
+    if (context.mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop(); // Cerrar diálogo de verificación
+    }
+
+    // Si el rostro NO coincide
+    if (!verificationResult.isMatch) {
+      if (context.mounted) {
+        _showFaceVerificationFailedDialog(
+          context,
+          verificationResult.similarity,
+          type,
+        );
+      }
+      setState(() {
+        _isProcessingLocation = false;
+      });
       return;
     }
 
-    if (type == 'salida') {
-      if (!_hasCheckedInToday) {
-        _showWarningDialog(context, 'Debes marcar entrada primero', 
-            'No puedes marcar salida sin haber marcado entrada.');
-        return;
-      }
-      if (_hasCheckedOutToday) {
-        _showWarningDialog(context, 'Ya registraste tu salida hoy', 
-            'Solo puedes marcar una salida por día.');
-        return;
-      }
-    }
-
-    setState(() {
-      _isProcessingLocation = true;
-    });
-
-    try {
+    // ✅ ROSTRO VERIFICADO - Continuar con el flujo normal (GPS)
+    if (context.mounted) {
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -802,52 +904,53 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
           ),
         ),
       );
-
-      String attendanceId;
-      
-      if (type == 'entrada') {
-        attendanceId = await _attendanceService.markCheckIn(
-          workerId: user.uid,
-          worksiteId: user.assignedWorksiteId!,
-        );
-      } else {
-        attendanceId = await _attendanceService.markCheckOut(
-          workerId: user.uid,
-          worksiteId: user.assignedWorksiteId!,
-        );
-      }
-      
-      if (context.mounted) {
-        Navigator.of(context).pop();
-      }
-
-      await _refreshAttendanceStatus();
-
-      if (context.mounted) {
-        _showSuccessDialog(context, type, attendanceId);
-      }
-
-    } catch (e) {
-      if (context.mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-
-      if (context.mounted) {
-        if (e is OfflineException) {
-          await _checkPendingSync();
-          _showOfflineSuccessDialog(context, e.message);
-        } else {
-          String errorMsg = _getAttendanceErrorMessage(e);
-          _showErrorDialog(context, errorMsg);
-        }
-      }
-    } finally {
-      setState(() {
-        _isProcessingLocation = false;
-      });
     }
-  }
 
+    // 🆕 PASO 2: VALIDACIÓN GPS Y REGISTRO (código original)
+    String attendanceId;
+    
+    if (type == 'entrada') {
+      attendanceId = await _attendanceService.markCheckIn(
+        workerId: user.uid,
+        worksiteId: user.assignedWorksiteId!,
+      );
+    } else {
+      attendanceId = await _attendanceService.markCheckOut(
+        workerId: user.uid,
+        worksiteId: user.assignedWorksiteId!,
+      );
+    }
+    
+    if (context.mounted) {
+      Navigator.of(context).pop();
+    }
+
+    await _refreshAttendanceStatus();
+
+    if (context.mounted) {
+      _showSuccessDialog(context, type, attendanceId);
+    }
+
+  } catch (e) {
+    if (context.mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+
+    if (context.mounted) {
+      if (e is OfflineException) {
+        await _checkPendingSync();
+        _showOfflineSuccessDialog(context, e.message);
+      } else {
+        String errorMsg = _getAttendanceErrorMessage(e);
+        _showErrorDialog(context, errorMsg);
+      }
+    }
+  } finally {
+    setState(() {
+      _isProcessingLocation = false;
+    });
+  }
+}
   void _showWarningDialog(BuildContext context, String title, String message) {
     showDialog(
       context: context,
@@ -1296,4 +1399,86 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
       ),
     );
   }
+  void _showFaceVerificationFailedDialog(BuildContext context, double similarity, String type) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.error.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.face, color: AppColors.error, size: 24),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text('Verificación Fallida', style: TextStyle(fontSize: 18)),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'El rostro capturado no coincide con el registrado.',
+            style: TextStyle(fontSize: 15),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.analytics, color: AppColors.textSecondary, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Similitud: ${similarity.toStringAsFixed(1)}%',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Asegúrate de:\n'
+            '• Tener buena iluminación\n'
+            '• Mirar directamente a la cámara\n'
+            '• No usar lentes oscuros o gorros',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cerrar'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            // Reintentar automáticamente
+            _handleMarkAttendance(context, type);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: const Text('Reintentar'),
+        ),
+      ],
+    ),
+  );
+}
 }
