@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../../constants/app_colors.dart';
 
@@ -23,7 +22,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
   bool _isProcessing = false;
-  bool _faceDetected = false;
+  //bool _faceDetected = false;
   List<CameraDescription> _cameras = []; // 🆕 Lista de cámaras disponibles
   int _currentCameraIndex = 0; // 🆕 Índice de cámara actual
   final FaceDetector _faceDetector = FaceDetector(
@@ -168,11 +167,10 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
       // 3. Verificar calidad del rostro
       final Face face = faces.first;
       
-      // Verificar que el rostro esté de frente
+      // Verificar que el rostro esté de frente (solo ángulo Y)
       final double? headEulerAngleY = face.headEulerAngleY;
-      final double? headEulerAngleZ = face.headEulerAngleZ;
 
-      if (headEulerAngleY != null && headEulerAngleY!.abs() > 15) {
+      if (headEulerAngleY != null && headEulerAngleY.abs() > 15) {
         if (mounted) {
           _showWarningDialog(
             'Rostro no está de frente',
