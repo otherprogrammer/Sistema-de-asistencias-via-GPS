@@ -792,16 +792,16 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
       barrierDismissible: false,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
+        child: const Padding(
+          padding: EdgeInsets.all(32.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.face, color: AppColors.primary, size: 60),
-              const SizedBox(height: 24),
+              Icon(Icons.face, color: AppColors.primary, size: 60),
+              SizedBox(height: 24),
               Text(
                 'Verificando identidad...',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -816,7 +816,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
 
     final File? capturedImage = await Navigator.of(context).push<File>(
       MaterialPageRoute(
-        builder: (context) => FaceCaptureScreen(
+        builder: (context) => const FaceCaptureScreen(
           isRegistration: false,
           title: 'Verifica tu identidad',
         ),

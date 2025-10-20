@@ -24,6 +24,8 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
   bool _isCameraInitialized = false;
   bool _isProcessing = false;
   bool _faceDetected = false;
+  List<CameraDescription> _cameras = []; // 🆕 Lista de cámaras disponibles
+  int _currentCameraIndex = 0; // 🆕 Índice de cámara actual
   final FaceDetector _faceDetector = FaceDetector(
     options: FaceDetectorOptions(
       enableContours: true,
@@ -46,18 +48,32 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
 
   Future<void> _initializeCamera() async {
     try {
-      final cameras = await availableCameras();
+      _cameras = await availableCameras();
       
-      // Buscar cámara frontal
-      final frontCamera = cameras.firstWhere(
+      if (_cameras.isEmpty) {
+        if (mounted) {
+          _showErrorDialog('No se encontraron cámaras en el dispositivo.');
+        }
+        return;
+      }
+
+      // 🔧 Buscar índice de cámara frontal
+      _currentCameraIndex = _cameras.indexWhere(
         (camera) => camera.lensDirection == CameraLensDirection.front,
-        orElse: () => cameras.first,
       );
+      
+      // Si no hay frontal, usar la primera
+      if (_currentCameraIndex == -1) {
+        _currentCameraIndex = 0;
+      }
+
+      print('✅ Usando cámara: ${_cameras[_currentCameraIndex].name}');
 
       _cameraController = CameraController(
-        frontCamera,
-        ResolutionPreset.high,
+        _cameras[_currentCameraIndex],
+        ResolutionPreset.medium,
         enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
       );
 
       await _cameraController!.initialize();
@@ -66,12 +82,42 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
         setState(() {
           _isCameraInitialized = true;
         });
+        print('📸 Cámara inicializada correctamente');
       }
     } catch (e) {
       print('❌ Error inicializando cámara: $e');
       if (mounted) {
         _showErrorDialog('No se pudo acceder a la cámara. Verifica los permisos.');
       }
+    }
+  }
+
+  // 🆕 Cambiar entre cámaras
+  Future<void> _switchCamera() async {
+    if (_cameras.length < 2) return;
+
+    setState(() {
+      _isCameraInitialized = false;
+    });
+
+    await _cameraController?.dispose();
+
+    // Cambiar al siguiente índice
+    _currentCameraIndex = (_currentCameraIndex + 1) % _cameras.length;
+
+    _cameraController = CameraController(
+      _cameras[_currentCameraIndex],
+      ResolutionPreset.medium,
+      enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.jpeg,
+    );
+
+    await _cameraController!.initialize();
+
+    if (mounted) {
+      setState(() {
+        _isCameraInitialized = true;
+      });
     }
   }
 
@@ -158,7 +204,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
+              appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
         leading: IconButton(
@@ -169,6 +215,15 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
           widget.title,
           style: const TextStyle(color: Colors.white),
         ),
+        actions: [
+          // 🆕 Botón para cambiar cámara
+          if (_cameras.length > 1)
+            IconButton(
+              icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
+              onPressed: _isCameraInitialized && !_isProcessing ? _switchCamera : null,
+              tooltip: 'Cambiar cámara',
+            ),
+        ],
       ),
       body: Stack(
         children: [
