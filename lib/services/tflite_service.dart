@@ -25,10 +25,10 @@ class TFLiteService {
 
     try {
       print('🔄 Inicializando TFLite con FaceNet...');
-      
+
       // Cargar el modelo desde assets
       _interpreter = await Interpreter.fromAsset('assets/models/mobilefacenet.tflite');
-      
+
       _isInitialized = true;
       print('✅ TFLite inicializado correctamente');
       print('📊 Modelo FaceNet cargado (160x160 -> 512 dimensiones)');
@@ -61,7 +61,7 @@ class TFLiteService {
 
       // 4. Preparar buffers
       var input = inputBytes.reshape([1, inputSize, inputSize, 3]);
-      
+
       // Output: [1, 512] - solo reshape el contenedor, no los datos
       var output = List.filled(1, List<double>.filled(outputSize, 0.0));
 
@@ -89,7 +89,7 @@ class TFLiteService {
     for (int y = 0; y < inputSize; y++) {
       for (int x = 0; x < inputSize; x++) {
         var pixel = image.getPixel(x, y);
-        
+
         // Normalizar RGB a [0, 1]
         buffer[pixelIndex++] = pixel.r / 255.0;
         buffer[pixelIndex++] = pixel.g / 255.0;

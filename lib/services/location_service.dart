@@ -16,14 +16,14 @@ class LocationService {
 
       // Verificar permisos actuales
       LocationPermission permission = await Geolocator.checkPermission();
-      
+
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           throw Exception('Permisos de ubicación denegados');
         }
       }
-      
+
       if (permission == LocationPermission.deniedForever) {
         throw Exception('Permisos de ubicación denegados permanentemente. Ve a Configuración para habilitarlos.');
       }
@@ -64,7 +64,7 @@ class LocationService {
   /// Calcular distancia entre dos puntos en metros
   double calculateDistance({
     required double lat1,
-    required double lon1, 
+    required double lon1,
     required double lat2,
     required double lon2,
   }) {
@@ -99,7 +99,7 @@ class LocationService {
   /// Obtener descripción legible del error de ubicación
   String getLocationErrorMessage(dynamic error) {
     String errorStr = error.toString().toLowerCase();
-    
+
     if (errorStr.contains('timeout')) {
       return 'Tiempo agotado al obtener ubicación. Verifica que el GPS esté activado.';
     } else if (errorStr.contains('permission') || errorStr.contains('denied')) {
