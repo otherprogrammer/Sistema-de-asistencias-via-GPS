@@ -5,6 +5,7 @@ import { worksitesService } from '../services/worksitesService';
 import { workersService } from '../services/workersService';
 import Loading from '../components/Loading';
 import AttendanceEditModal from '../components/AttendanceEditModal';
+import { exportAttendanceToExcel } from '../lib/excelExport';
 
 const AttendancePage: React.FC = () => {
   // Estados principales
@@ -108,6 +109,25 @@ const AttendancePage: React.FC = () => {
   const handleSaved = async () => {
     // refrescar los reportes
     await loadReports();
+  };
+
+  const handleExportExcel = () => {
+    if (attendanceRecords.length === 0) {
+      setError('No hay registros para exportar. Intenta aplicar los filtros nuevamente.');
+      return;
+    }
+    
+    try {
+      exportAttendanceToExcel(
+        attendanceRecords,
+        filters,
+        worksites,
+        workers
+      );
+      setError('');
+    } catch (error) {
+      setError('Error al exportar a Excel: ' + (error as Error).message);
+    }
   };
 
   // Cambiar entre vistas
@@ -280,12 +300,19 @@ const AttendancePage: React.FC = () => {
               </div>
             )}
             {viewMode === 'reports' && (
-              <div className="mt-6 flex justify-end">
+              <div className="mt-6 flex justify-end gap-4">
                 <button
                   onClick={() =>  void loadReports()}
                   className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-2"
                 >
                   <span>Aplicar Filtros</span>
+                </button>
+                <button
+                  onClick={handleExportExcel}
+                  disabled={attendanceRecords.length === 0}
+                  className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  <span>📊 Exportar a Excel</span>
                 </button>
               </div>
             )}
