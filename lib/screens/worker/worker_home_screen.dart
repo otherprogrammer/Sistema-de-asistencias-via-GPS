@@ -47,7 +47,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkTodayAttendanceStatus();
       _checkPendingSync();
@@ -72,15 +72,15 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
     try {
       final authService = context.read<AuthService>();
       final user = authService.currentUser;
-      
+
       if (user != null) {
         print('🔍 Verificando asistencia para usuario: ${user.uid}');
-        
+
         bool hasCheckIn = await _attendanceService.hasCheckedInToday(user.uid);
         bool hasCheckOut = await _attendanceService.hasCheckedOutToday(user.uid);
-        
+
         print('✅ Estado: Entrada=$hasCheckIn, Salida=$hasCheckOut');
-        
+
         if (mounted) {
           setState(() {
             _hasCheckedInToday = hasCheckIn;
@@ -160,7 +160,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
 
     try {
       SyncResult result = await _offlineSync.syncPendingAttendances();
-      
+
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
@@ -289,7 +289,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                   child: Column(
                     children: [
                       const SizedBox(height: 20),
-                      
+
                       FadeInDown(
                         delay: const Duration(milliseconds: 300),
                         child: Container(
@@ -436,12 +436,12 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                           children: [
                             Expanded(
                               child: _buildActionButton(
-                                onPressed: (_isProcessingLocation || _isLoadingStatus || _hasCheckedInToday) 
-                                    ? null 
+                                onPressed: (_isProcessingLocation || _isLoadingStatus || _hasCheckedInToday)
+                                    ? null
                                     : () => _handleMarkAttendance(context, 'entrada'),
                                 label: _hasCheckedInToday ? 'Entrada\nRegistrada' : 'Marcar\nEntrada',
                                 icon: _hasCheckedInToday ? Icons.check_circle : Icons.login,
-                                gradient: _hasCheckedInToday 
+                                gradient: _hasCheckedInToday
                                     ? [Colors.grey, Colors.grey.shade400]
                                     : [AppColors.success, AppColors.success.withOpacity(0.7)],
                                 isLoading: _isProcessingLocation && !_hasCheckedInToday,
@@ -450,13 +450,13 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                             const SizedBox(width: 16),
                             Expanded(
                               child: _buildActionButton(
-                                onPressed: (_isProcessingLocation || _isLoadingStatus || _hasCheckedOutToday) 
-                                    ? null 
+                                onPressed: (_isProcessingLocation || _isLoadingStatus || _hasCheckedOutToday)
+                                    ? null
                                     : () {
                                         if (!_hasCheckedInToday) {
                                           _showWarningDialog(
-                                            context, 
-                                            'Debes marcar entrada primero', 
+                                            context,
+                                            'Debes marcar entrada primero',
                                             'No puedes marcar salida sin haber marcado entrada.'
                                           );
                                         } else {
@@ -465,7 +465,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
                                       },
                                 label: _hasCheckedOutToday ? 'Salida\nRegistrada' : 'Marcar\nSalida',
                                 icon: _hasCheckedOutToday ? Icons.check_circle : Icons.logout,
-                                gradient: _hasCheckedOutToday 
+                                gradient: _hasCheckedOutToday
                                     ? [Colors.grey, Colors.grey.shade400]
                                     : [AppColors.error, AppColors.error.withOpacity(0.7)],
                                 isLoading: _isProcessingLocation && !_hasCheckedOutToday,
@@ -735,9 +735,25 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              context.read<AuthService>().signOut();
+            onPressed: () async {
+              try {
+                Navigator.of(context).pop();
+
+                // Cerrar sesión de forma segura
+                await context.read<AuthService>().signOut();
+
+                // La navegación se manejará automáticamente en AuthWrapper
+              } catch (e) {
+                print('❌ Error cerrando sesión: $e');
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error al cerrar sesión: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
@@ -756,26 +772,26 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
 
   final authService = context.read<AuthService>();
   final user = authService.currentUser;
-  
+
   if (user == null || user.assignedWorksiteId == null) {
     _showErrorDialog(context, 'Usuario o obra no válidos');
     return;
   }
 
   if (type == 'entrada' && _hasCheckedInToday) {
-    _showWarningDialog(context, 'Ya registraste tu entrada hoy', 
+    _showWarningDialog(context, 'Ya registraste tu entrada hoy',
         'Solo puedes marcar una entrada por día.');
     return;
   }
 
   if (type == 'salida') {
     if (!_hasCheckedInToday) {
-      _showWarningDialog(context, 'Debes marcar entrada primero', 
+      _showWarningDialog(context, 'Debes marcar entrada primero',
           'No puedes marcar salida sin haber marcado entrada.');
       return;
     }
     if (_hasCheckedOutToday) {
-      _showWarningDialog(context, 'Ya registraste tu salida hoy', 
+      _showWarningDialog(context, 'Ya registraste tu salida hoy',
           'Solo puedes marcar una salida por día.');
       return;
     }
@@ -908,7 +924,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
 
     // 🆕 PASO 2: VALIDACIÓN GPS Y REGISTRO (código original)
     String attendanceId;
-    
+
     if (type == 'entrada') {
       attendanceId = await _attendanceService.markCheckIn(
         workerId: user.uid,
@@ -920,7 +936,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
         worksiteId: user.assignedWorksiteId!,
       );
     }
-    
+
     if (context.mounted) {
       Navigator.of(context).pop();
     }
@@ -1099,7 +1115,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
 
   String _getAttendanceErrorMessage(dynamic error) {
     String errorStr = error.toString();
-    
+
     if (errorStr.contains('fuera del perímetro')) {
       return errorStr;
     } else if (errorStr.contains('No se encontró registro de entrada')) {
@@ -1183,10 +1199,10 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> with TickerProvider
       );
 
       Position? position = await _locationService.getCurrentLocation();
-      
+
       if (context.mounted) {
         Navigator.of(context).pop();
-        
+
         if (position != null) {
           _showLocationResult(context, position);
         } else {

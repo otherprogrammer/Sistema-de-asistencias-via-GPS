@@ -70,7 +70,7 @@ class AuthService extends ChangeNotifier {
 
       // PRIMERO: Autenticarse en Firebase Auth con email/password
       String tempEmail = '$dni@crellat.com';
-      
+
       try {
         UserCredential result = await _auth.signInWithEmailAndPassword(
           email: tempEmail,
@@ -80,7 +80,7 @@ class AuthService extends ChangeNotifier {
         if (result.user != null) {
           // DESPUÉS: Cargar datos del usuario desde Firestore (ya autenticado)
           await _loadUserData(result.user!.uid);
-          
+
           // Verificar que sea trabajador activo
           if (_currentUser?.role != 'trabajador') {
             await signOut();
@@ -89,7 +89,7 @@ class AuthService extends ChangeNotifier {
             notifyListeners();
             return false;
           }
-          
+
           if (!(_currentUser?.isActive ?? false)) {
             await signOut();
             _errorMessage = 'Tu cuenta está inactiva. Contacta al administrador';
@@ -97,7 +97,7 @@ class AuthService extends ChangeNotifier {
             notifyListeners();
             return false;
           }
-          
+
           _isLoading = false;
           notifyListeners();
           return true;
@@ -124,7 +124,7 @@ class AuthService extends ChangeNotifier {
       _errorMessage = 'No hay usuario autenticado';
       return false;
     }
-    
+
     try {
       _isLoading = true;
       _errorMessage = null;
@@ -134,30 +134,30 @@ class AuthService extends ChangeNotifier {
 
       String tempEmail = '${_currentUser!.dni}@crellat.com';
       AuthCredential credential = EmailAuthProvider.credential(
-        email: tempEmail, 
+        email: tempEmail,
         password: currentPassword
       );
-      
+
       // Reautenticar
       print('🔐 Reautenticando...');
       await _auth.currentUser!.reauthenticateWithCredential(credential);
-      
+
       // Cambiar contraseña
       print('🔐 Actualizando contraseña...');
       await _auth.currentUser!.updatePassword(newPassword);
-      
+
       // CRÍTICO: Actualizar el flag en Firestore
       print('🔐 Actualizando flag en Firestore...');
       await _firestore.collection('users').doc(_auth.currentUser!.uid).update({
         'hasChangedPassword': true,
       });
-      
+
       // Recargar datos del usuario inmediatamente
       print('🔐 Recargando datos del usuario...');
       await _loadUserData(_auth.currentUser!.uid);
-      
+
       print('✅ Contraseña cambiada exitosamente. hasChangedPassword: ${_currentUser?.hasChangedPassword}');
-      
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -172,10 +172,20 @@ class AuthService extends ChangeNotifier {
 
   /// Cerrar sesión
   Future<void> signOut() async {
-    await _auth.signOut();
-    _currentUser = null;
-    _errorMessage = null;
-    notifyListeners();
+    try {
+      await _auth.signOut();
+
+      _currentUser = null;
+      _errorMessage = null;
+      _isLoading = false;
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ Error cerrando sesión: $e');
+      _errorMessage = 'Error al cerrar sesión: $e';
+      notifyListeners();
+      rethrow;
+    }
   }
 
   /// Limpiar mensajes de error

@@ -73,6 +73,7 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthService>(
       builder: (context, authService, _) {
+        // Si está cargando, mostrar loading
         if (authService.isLoading) {
           return const Scaffold(
             body: Center(
@@ -81,12 +82,20 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
+        // Si no hay usuario, mostrar login
         if (authService.currentUser == null) {
           print('🚪 No hay usuario - Mostrando LoginScreen');
           return const LoginScreen();
         }
 
-        final user = authService.currentUser!;
+        final user = authService.currentUser;
+        
+        // Validar que el usuario no sea nulo antes de usarlo
+        if (user == null) {
+          print('⚠️ Usuario es nulo inesperadamente, mostrando login');
+          return const LoginScreen();
+        }
+
         print('👤 Usuario actual: ${user.fullName}');
 
         // Verificar si es trabajador y necesita primer setup
@@ -95,7 +104,7 @@ class AuthWrapper extends StatelessWidget {
           print('   - hasChangedPassword: ${user.hasChangedPassword}');
           print('   - hasSelectedWorksite: ${user.hasSelectedWorksite}');
           print('   - assignedWorksiteId: ${user.assignedWorksiteId}');
-          print('   - faceRegistered: ${user.faceRegistered ?? false}'); // 🆕
+          print('   - faceRegistered: ${user.faceRegistered ?? false}');
           
           // 1️⃣ Si no ha cambiado contraseña, ir a cambio obligatorio
           if (!user.hasChangedPassword) {
@@ -109,7 +118,7 @@ class AuthWrapper extends StatelessWidget {
             return const SelectWorksiteScreen();
           }
 
-          // 3️⃣ 🆕 Si no ha registrado rostro, ir a registro facial
+          // 3️⃣ Si no ha registrado rostro, ir a registro facial
           if (user.faceRegistered != true) {
             print('📸 Redirigiendo a FaceRegistrationScreen');
             return const FaceRegistrationScreen();
