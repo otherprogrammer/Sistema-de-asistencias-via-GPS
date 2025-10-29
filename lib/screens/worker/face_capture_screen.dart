@@ -48,7 +48,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
   Future<void> _initializeCamera() async {
     try {
       _cameras = await availableCameras();
-      
+
       if (_cameras.isEmpty) {
         if (mounted) {
           _showErrorDialog('No se encontraron cámaras en el dispositivo.');
@@ -60,7 +60,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
       _currentCameraIndex = _cameras.indexWhere(
         (camera) => camera.lensDirection == CameraLensDirection.front,
       );
-      
+
       // Si no hay frontal, usar la primera
       if (_currentCameraIndex == -1) {
         _currentCameraIndex = 0;
@@ -86,7 +86,8 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
     } catch (e) {
       print('❌ Error inicializando cámara: $e');
       if (mounted) {
-        _showErrorDialog('No se pudo acceder a la cámara. Verifica los permisos.');
+        _showErrorDialog(
+            'No se pudo acceder a la cámara. Verifica los permisos.');
       }
     }
   }
@@ -121,7 +122,9 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
   }
 
   Future<void> _captureAndProcessFace() async {
-    if (_isProcessing || _cameraController == null || !_cameraController!.value.isInitialized) {
+    if (_isProcessing ||
+        _cameraController == null ||
+        !_cameraController!.value.isInitialized) {
       return;
     }
 
@@ -166,7 +169,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
 
       // 3. Verificar calidad del rostro
       final Face face = faces.first;
-      
+
       // Verificar que el rostro esté de frente (solo ángulo Y)
       final double? headEulerAngleY = face.headEulerAngleY;
 
@@ -202,7 +205,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-              appBar: AppBar(
+      appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
         leading: IconButton(
@@ -218,7 +221,8 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
           if (_cameras.length > 1)
             IconButton(
               icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
-              onPressed: _isCameraInitialized && !_isProcessing ? _switchCamera : null,
+              onPressed:
+                  _isCameraInitialized && !_isProcessing ? _switchCamera : null,
               tooltip: 'Cambiar cámara',
             ),
         ],
@@ -251,7 +255,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
+                color: Colors.black.withValues(0.7),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -297,12 +301,10 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
                     height: 80,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _isProcessing
-                          ? Colors.grey
-                          : AppColors.primary,
+                      color: _isProcessing ? Colors.grey : AppColors.primary,
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.5),
+                          color: AppColors.primary.withValues(0.5),
                           blurRadius: 20,
                           offset: const Offset(0, 5),
                         ),
@@ -340,10 +342,11 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.1),
+                color: AppColors.warning.withValues(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.warning, color: AppColors.warning, size: 24),
+              child:
+                  const Icon(Icons.warning, color: AppColors.warning, size: 24),
             ),
             const SizedBox(width: 12),
             Expanded(child: Text(title, style: const TextStyle(fontSize: 18))),
@@ -356,7 +359,8 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Entendido'),
           ),
@@ -375,10 +379,11 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withValues(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.error_outline, color: AppColors.error, size: 24),
+              child: const Icon(Icons.error_outline,
+                  color: AppColors.error, size: 24),
             ),
             const SizedBox(width: 12),
             const Text('Error'),
@@ -401,7 +406,7 @@ class FaceOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.3)
+      ..color = Colors.white.withValues(0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
 
@@ -420,7 +425,7 @@ class FaceOverlayPainter extends CustomPainter {
 
     // Dibujar fondo oscuro fuera del óvalo
     final darkPaint = Paint()
-      ..color = Colors.black.withOpacity(0.5)
+      ..color = Colors.black.withValues(0.5)
       ..style = PaintingStyle.fill;
 
     final path = Path()

@@ -62,7 +62,8 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         context: context,
         barrierDismissible: false,
         builder: (context) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: const Padding(
             padding: EdgeInsets.all(32.0),
             child: Column(
@@ -142,7 +143,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
+                        color: AppColors.primary.withValues(0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -197,7 +198,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                       border: Border.all(color: AppColors.primary, width: 3),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.2),
+                          color: AppColors.primary.withValues(0.2),
                           blurRadius: 15,
                           offset: const Offset(0, 5),
                         ),
@@ -225,7 +226,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 5),
                       ),
@@ -269,10 +270,14 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _isProcessing ? null : _captureFace,
                         icon: Icon(
-                          _capturedImage == null ? Icons.camera_alt : Icons.refresh,
+                          _capturedImage == null
+                              ? Icons.camera_alt
+                              : Icons.refresh,
                         ),
                         label: Text(
-                          _capturedImage == null ? 'Capturar Rostro' : 'Recapturar',
+                          _capturedImage == null
+                              ? 'Capturar Rostro'
+                              : 'Recapturar',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -337,7 +342,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
+            color: AppColors.primary.withValues(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: AppColors.primary, size: 24),
@@ -381,14 +386,16 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.success.withOpacity(0.1),
+                color: AppColors.success.withValues(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.check_circle, color: AppColors.success, size: 24),
+              child: const Icon(Icons.check_circle,
+                  color: AppColors.success, size: 24),
             ),
             const SizedBox(width: 12),
             const Expanded(
-              child: Text('¡Rostro Registrado!', style: TextStyle(fontSize: 18)),
+              child:
+                  Text('¡Rostro Registrado!', style: TextStyle(fontSize: 18)),
             ),
           ],
         ),
@@ -401,14 +408,16 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
             onPressed: () {
               Navigator.of(context).pop(); // Cerrar diálogo
               Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (context) => const WorkerHomeScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const WorkerHomeScreen()),
               );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Ir al Inicio'),
           ),
@@ -427,10 +436,11 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withValues(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.error_outline, color: AppColors.error, size: 24),
+              child: const Icon(Icons.error_outline,
+                  color: AppColors.error, size: 24),
             ),
             const SizedBox(width: 12),
             const Text('Error'),
