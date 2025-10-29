@@ -17,6 +17,7 @@ const AttendancePage: React.FC = () => {
   const [workerStatuses, setWorkerStatuses] = useState<WorkerAttendanceStatus[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [worksiteFilter, setWorksiteFilter] = useState('all');
 
   // Estados para Reportes
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -56,6 +57,7 @@ const AttendancePage: React.FC = () => {
     try {
       setLoading(true);
       const statuses = await attendanceService.getRealtimeWorkerStatus();
+      console.log(statuses[0]);
       setWorkerStatuses(statuses);
       setError('');
     } catch (error) {
@@ -116,7 +118,7 @@ const AttendancePage: React.FC = () => {
       setError('No hay registros para exportar. Intenta aplicar los filtros nuevamente.');
       return;
     }
-    
+
     try {
       exportAttendanceToExcel(
         attendanceRecords,
@@ -145,7 +147,10 @@ const AttendancePage: React.FC = () => {
     const matchesStatus =
       statusFilter === 'all' || worker.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    const matchesWorksite =
+      worksiteFilter === 'all' || worker.worksiteId === worksiteFilter;
+
+    return matchesSearch && matchesStatus && matchesWorksite;
   });
 
   // Estadísticas del dashboard
@@ -380,7 +385,7 @@ const AttendancePage: React.FC = () => {
 
             {/* Filtros del Dashboard */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-bold text-gray-700 mb-2 flex items-center space-x-2">
                     <span>Buscar Trabajador</span>
@@ -404,9 +409,27 @@ const AttendancePage: React.FC = () => {
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-opacity-20 transition-all duration-200 bg-white"
                   >
                     <option value="all">Todos los estados</option>
-                    <option value="present">Solo presentes</option>
-                    <option value="absent">Solo ausentes</option>
-                    <option value="outside">Solo fuera de obra</option>
+                    <option value="Presente">Solo presentes</option>
+                    <option value="Ausente">Solo ausentes</option>
+                    <option value="Fuera de Obra">Solo fuera de obra</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-bold text-gray-700 mb-2 flex items-center space-x-2">
+                    <span>Filtrar por Obra</span>
+                  </label>
+                  <select
+                    value={worksiteFilter}
+                    onChange={(e) => setWorksiteFilter(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-opacity-20 transition-all duration-200 bg-white"
+                  >
+                    <option value="all">Todas las obras</option>
+                    {worksites.map((worksite) => (
+                      <option key={worksite.worksiteId} value={worksite.worksiteId}>
+                        {worksite.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
