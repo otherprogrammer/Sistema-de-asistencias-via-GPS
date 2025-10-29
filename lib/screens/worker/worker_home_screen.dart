@@ -562,6 +562,14 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen>
                                 color: AppColors.success,
                                 onTap: () => _testLocation(context),
                               ),
+                              _buildDivider(),
+                              _buildMenuTile(
+                                icon: Icons.face_retouching_natural,
+                                title: 'Volver a Registrar Rostro',
+                                subtitle: 'Actualiza tu registro facial',
+                                color: Colors.purple,
+                                onTap: () => _handleRegistrationFace(context),
+                              ),
                             ],
                           ),
                         ),
@@ -1567,6 +1575,292 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen>
                   borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Reintentar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleRegistrationFace(BuildContext context) async {
+    final authService = context.read<AuthService>();
+    final user = authService.currentUser;
+
+    if (user == null) {
+      _showErrorDialog(context, 'Usuario no válido');
+      return;
+    }
+    // Mostrar diálogo de confirmación con instrucciones
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.purple.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.face_retouching_natural,
+                  color: Colors.purple, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text('Re-registrar Rostro', style: TextStyle(fontSize: 18)),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '¿Deseas actualizar tu registro facial?',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Esto reemplazará tu rostro actual registrado. '
+                'Deberás capturar una nueva foto de tu rostro.',
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            color: AppColors.primary, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Recomendaciones:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '• Busca buena iluminación\n'
+                      '• Mira directamente a la cámara\n'
+                      '• No uses lentes oscuros o gorros\n'
+                      '• Mantén una expresión neutral',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Continuar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      // Abrir cámara para nueva captura
+      final File? capturedImage = await Navigator.of(context).push<File>(
+        MaterialPageRoute(
+          builder: (context) => const FaceCaptureScreen(
+            isRegistration: true,
+            title: 'Registra tu nuevo rostro',
+          ),
+        ),
+      );
+
+      if (capturedImage == null) {
+        // Usuario canceló la captura
+        return;
+      }
+
+      // Mostrar diálogo de procesamiento
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SpinKitFadingCircle(color: Colors.purple, size: 60),
+                  SizedBox(height: 24),
+                  Text(
+                    'Procesando nuevo rostro...',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Por favor espera...',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
+      // Actualizar rostro en el servicio
+      await _faceRecognitionService.updateFace(
+        userId: user.uid,
+        imageFile: capturedImage,
+      );
+
+      if (context.mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(); // Cerrar diálogo de procesamiento
+      }
+
+      // Mostrar diálogo de éxito
+      if (context.mounted) {
+        _showReRegisterSuccessDialog(context);
+      }
+    } catch (e) {
+      // Cerrar diálogo de procesamiento si está abierto
+      if (context.mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      // Mostrar error
+      if (context.mounted) {
+        _showErrorDialog(
+          context,
+          'Error al actualizar rostro: ${e.toString()}',
+        );
+      }
+    }
+  }
+
+  /// Mostrar diálogo de éxito después de re-registrar
+  void _showReRegisterSuccessDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.check_circle,
+                  color: AppColors.success, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text('¡Rostro Actualizado!', style: TextStyle(fontSize: 18)),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Tu rostro ha sido actualizado exitosamente.',
+              style: TextStyle(fontSize: 15),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppColors.success.withValues(alpha: 0.3),
+                ),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: AppColors.success, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Usa este nuevo registro para marcar tu asistencia',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.schedule, size: 16, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Registrado: ${DateTime.now().toString().substring(0, 16)}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Entendido'),
           ),
         ],
       ),

@@ -255,7 +255,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(0.7),
+                color: Colors.black.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -304,7 +304,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
                       color: _isProcessing ? Colors.grey : AppColors.primary,
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withValues(0.5),
+                          color: AppColors.primary.withValues(alpha: 0.5),
                           blurRadius: 20,
                           offset: const Offset(0, 5),
                         ),
@@ -342,7 +342,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.warning.withValues(0.1),
+                color: AppColors.warning.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child:
@@ -379,7 +379,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.error.withValues(0.1),
+                color: AppColors.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.error_outline,
@@ -406,7 +406,7 @@ class FaceOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withValues(0.3)
+      ..color = Colors.white.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
 
@@ -425,7 +425,7 @@ class FaceOverlayPainter extends CustomPainter {
 
     // Dibujar fondo oscuro fuera del óvalo
     final darkPaint = Paint()
-      ..color = Colors.black.withValues(0.5)
+      ..color = Colors.black.withValues(alpha: 0.5)
       ..style = PaintingStyle.fill;
 
     final path = Path()
