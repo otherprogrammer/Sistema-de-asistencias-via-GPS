@@ -1,0 +1,13 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local environment and secret credentials
+.env
+*.local
+secrets/
+
+# Generated runtime exports (sample dataset is kept in data/)
+exports/

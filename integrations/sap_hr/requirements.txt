@@ -1,0 +1,6 @@
+# Dependencias del Módulo de Integración SAP HR
+requests>=2.31.0
+python-dotenv>=1.0.0
+pytest>=8.0.0
+# firebase-admin es opcional si se opera con la API REST directa de Firestore
+# firebase-admin>=6.5.0
