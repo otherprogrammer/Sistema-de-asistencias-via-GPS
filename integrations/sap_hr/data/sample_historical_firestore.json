@@ -1,0 +1,223 @@
+{
+  "users": [
+    {
+      "uid": "worker_user_001",
+      "role": "trabajador",
+      "dni": "72491023",
+      "fullName": "Carlos Mendoza Rivera",
+      "assignedWorksiteId": "worksite_miraflores_01",
+      "isActive": true,
+      "faceRegistered": true
+    },
+    {
+      "uid": "worker_user_002",
+      "role": "trabajador",
+      "dni": "45892011",
+      "fullName": "Jorge Luis Quispe",
+      "assignedWorksiteId": "worksite_miraflores_01",
+      "isActive": true,
+      "faceRegistered": true
+    },
+    {
+      "uid": "worker_user_003",
+      "role": "trabajador",
+      "dni": "10482904",
+      "fullName": "Pedro Gomez Sanchez",
+      "assignedWorksiteId": "worksite_san_isidro_02",
+      "isActive": true,
+      "faceRegistered": true
+    },
+    {
+      "uid": "worker_user_004_nodni",
+      "role": "trabajador",
+      "dni": null,
+      "fullName": "Trabajador Sin DNI",
+      "assignedWorksiteId": "worksite_miraflores_01",
+      "isActive": true
+    }
+  ],
+  "worksites": [
+    {
+      "id": "worksite_miraflores_01",
+      "name": "Edificio Residencial Parque Alto",
+      "latitude": -12.1215,
+      "longitude": -77.0289,
+      "radius": 120.0
+    },
+    {
+      "id": "worksite_san_isidro_02",
+      "name": "Centro Empresarial Las Camelias",
+      "latitude": -12.0954,
+      "longitude": -77.0321,
+      "radius": 150.0
+    }
+  ],
+  "attendances": [
+    {
+      "id": "att_20251020_001",
+      "workerId": "worker_user_001",
+      "worksiteId": "worksite_miraflores_01",
+      "date": "2025-10-20T00:00:00Z",
+      "punchIn": {
+        "timestamp": "2025-10-20T08:02:15Z",
+        "location": {
+          "latitude": -12.12148,
+          "longitude": -77.02889
+        },
+        "isValid": true
+      },
+      "punchOut": {
+        "timestamp": "2025-10-20T17:31:40Z",
+        "location": {
+          "latitude": -12.12151,
+          "longitude": -77.02891
+        },
+        "isValid": true
+      },
+      "status": "Presente",
+      "workedHours": 9.49
+    },
+    {
+      "id": "att_20251020_001_dup",
+      "workerId": "worker_user_001",
+      "worksiteId": "worksite_miraflores_01",
+      "date": "2025-10-20T00:00:00Z",
+      "punchIn": {
+        "timestamp": "2025-10-20T08:02:40Z",
+        "location": {
+          "latitude": -12.12148,
+          "longitude": -77.02889
+        },
+        "isValid": true
+      },
+      "punchOut": {
+        "timestamp": "2025-10-20T17:31:40Z",
+        "location": {
+          "latitude": -12.12151,
+          "longitude": -77.02891
+        },
+        "isValid": true
+      },
+      "status": "Presente",
+      "workedHours": 9.49
+    },
+    {
+      "id": "att_20251020_002",
+      "workerId": "worker_user_002",
+      "worksiteId": "worksite_miraflores_01",
+      "date": "2025-10-20T00:00:00Z",
+      "punchIn": {
+        "timestamp": "2025-10-20T07:55:10Z",
+        "location": {
+          "latitude": -12.12152,
+          "longitude": -77.02888
+        },
+        "isValid": true
+      },
+      "punchOut": {
+        "timestamp": "2025-10-20T18:05:00Z",
+        "location": {
+          "latitude": -12.12153,
+          "longitude": -77.0289
+        },
+        "isValid": true
+      },
+      "status": "Presente",
+      "workedHours": 10.16
+    },
+    {
+      "id": "att_20251020_003",
+      "workerId": "worker_user_003",
+      "worksiteId": "worksite_san_isidro_02",
+      "date": "2025-10-20T00:00:00Z",
+      "punchIn": {
+        "timestamp": "2025-10-20T08:10:00Z",
+        "location": {
+          "latitude": -12.09541,
+          "longitude": -77.03209
+        },
+        "isValid": true
+      },
+      "punchOut": {
+        "timestamp": "2025-10-20T17:00:00Z",
+        "location": {
+          "latitude": -12.0954,
+          "longitude": -77.03211
+        },
+        "isValid": true
+      },
+      "status": "Presente",
+      "workedHours": 8.83
+    },
+    {
+      "id": "att_20251020_004",
+      "workerId": "worker_user_004_nodni",
+      "worksiteId": "worksite_miraflores_01",
+      "date": "2025-10-20T00:00:00Z",
+      "punchIn": {
+        "timestamp": "2025-10-20T08:30:00Z",
+        "location": {
+          "latitude": -12.1215,
+          "longitude": -77.0289
+        },
+        "isValid": true
+      },
+      "punchOut": {
+        "timestamp": "2025-10-20T17:30:00Z",
+        "location": {
+          "latitude": -12.1215,
+          "longitude": -77.0289
+        },
+        "isValid": true
+      },
+      "status": "Presente"
+    },
+    {
+      "id": "att_20251020_005_bad_gps",
+      "workerId": "worker_user_002",
+      "worksiteId": "worksite_miraflores_01",
+      "date": "2025-10-21T00:00:00Z",
+      "punchIn": {
+        "timestamp": "2025-10-21T08:00:00Z",
+        "location": {
+          "latitude": 0.0,
+          "longitude": 0.0
+        },
+        "isValid": false
+      },
+      "punchOut": {
+        "timestamp": "2025-10-21T17:00:00Z",
+        "location": {
+          "latitude": 0.0,
+          "longitude": 0.0
+        },
+        "isValid": false
+      },
+      "status": "Presente"
+    },
+    {
+      "id": "att_20251021_001",
+      "workerId": "worker_user_001",
+      "worksiteId": "worksite_miraflores_01",
+      "date": "2025-10-21T00:00:00Z",
+      "punchIn": {
+        "timestamp": "2025-10-21T08:05:00Z",
+        "location": {
+          "latitude": -12.12149,
+          "longitude": -77.028895
+        },
+        "isValid": true
+      },
+      "punchOut": {
+        "timestamp": "2025-10-21T17:25:00Z",
+        "location": {
+          "latitude": -12.121515,
+          "longitude": -77.028905
+        },
+        "isValid": true
+      },
+      "status": "Presente",
+      "workedHours": 9.33
+    }
+  ]
+}
