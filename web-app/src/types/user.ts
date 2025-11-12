@@ -11,7 +11,7 @@ export interface UserData {
 }
 
 export interface CreateWorkerData {
-  email: string;
+  email?: string;
   password: string;
   dni: string;
   fullName: string;

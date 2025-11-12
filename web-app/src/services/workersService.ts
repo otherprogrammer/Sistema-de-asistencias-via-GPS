@@ -53,12 +53,18 @@ export class WorkersService {
   // Crear trabajador
   async createWorker(workerData: CreateWorkerData): Promise<UserData> {
     try {
-      workerData.email = workerData.email ?? `${workerData.dni}@crellat.com`;
+      // Asegurar que siempre hay un email válido
+      const email = workerData.email?.trim() || `${workerData.dni}@crellat.com`;
+
+      // Validar que el email no esté vacío y sea válido
+      if (!email || !email.includes('@')) {
+        throw new Error('Email inválido. Verifica que DNI y email sean válidos.');
+      }
 
       // 1. Crear usuario en Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         createAuth,
-        workerData.email,
+        email,
         workerData.password,
       );
 
@@ -66,7 +72,7 @@ export class WorkersService {
       const userData: UserData = {
         uid: userCredential.user.uid,
         role: workerData.role || 'trabajador',
-        email: workerData.email,
+        email: email,
         dni: workerData.dni,
         fullName: workerData.fullName,
         assignedWorksiteId: '',

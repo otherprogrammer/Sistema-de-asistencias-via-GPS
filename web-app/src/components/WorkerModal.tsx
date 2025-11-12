@@ -45,7 +45,7 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
       }
     };
 
-    fetchWorksites();
+    void fetchWorksites();
   }, []);
 
   useEffect(() => {
@@ -77,12 +77,16 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
 
     try {
       // Validaciones
-      if (
-        !formData.fullName ||
-        (formData.role === 'trabajador' && !formData.dni) ||
-        (formData.role === 'admin' && !formData.email)
-      ) {
-        throw new Error('Todos los campos son obligatorios');
+      if (!formData.fullName) {
+        throw new Error('El nombre completo es obligatorio');
+      }
+
+      if (formData.role === 'trabajador' && !formData.dni) {
+        throw new Error('El DNI es obligatorio para trabajadores');
+      }
+
+      if (formData.role === 'admin' && !formData.email) {
+        throw new Error('El email es obligatorio para administradores');
       }
 
       if (mode === 'create' && !formData.password) {
@@ -104,16 +108,23 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
       let savedWorker: UserData;
 
       if (mode === 'create') {
-        savedWorker = await workersService.createWorker(formData as CreateWorkerData);
+        // Para trabajadores, usar DNI como parte del email si no hay email especificado
+        const workerDataToCreate = {
+          ...formData,
+          email: formData.email || `${formData.dni}@crellat.com`,
+        };
+        savedWorker = await workersService.createWorker(workerDataToCreate as CreateWorkerData);
       } else if (mode === 'edit' && worker) {
+        // Para edición, usar el email existente o el email ingresado
+        const emailToUse = formData.email || (formData.role === 'trabajador' ? `${formData.dni}@crellat.com` : worker.email);
         await workersService.updateWorker(worker.uid, {
-          email: formData.email,
+          email: emailToUse,
           dni: formData.dni,
           fullName: formData.fullName,
           assignedWorksiteId: formData.assignedWorksiteId || null,
           role: formData.role,
         });
-        savedWorker = { ...worker, ...formData };
+        savedWorker = { ...worker, ...formData, email: emailToUse };
       } else {
         return;
       }
@@ -142,8 +153,8 @@ const WorkerModal: React.FC<WorkerModalProps> = ({ isOpen, onClose, onSave, work
       <div
         className={`bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[95vh] overflow-hidden transition-all duration-300 ${
           isClosing
-            ? 'animate-scale-out animate-slide-out-bottom'
-            : 'animate-scale-in animate-slide-in-bottom'
+            ? 'animate-scale-out'
+            : 'animate-scale-in'
         }`}
         onClick={(e) => e.stopPropagation()} // Evitar cerrar al hacer click en el modal
       >

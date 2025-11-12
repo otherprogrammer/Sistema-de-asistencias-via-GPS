@@ -10,12 +10,14 @@ const WorkersPage: React.FC = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
 
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedWorker, setSelectedWorker] = useState<UserData | null>(null);
+
+  // Undo state
+  const [undoState, setUndoState] = useState<{ worker: UserData; timeoutId: NodeJS.Timeout } | null>(null);
 
   // Cargar trabajadores
   const loadWorkers = async () => {
@@ -37,18 +39,17 @@ const WorkersPage: React.FC = () => {
 
   // Filtrar trabajadores
   const filteredWorkers = workers.filter((worker) => {
+    // Solo mostrar trabajadores activos
+    if (!worker.isActive) return false;
+
     const matchesSearch =
       worker.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       worker.dni.includes(searchTerm) ||
       worker.email.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesRole = filterRole === 'all' || worker.role === filterRole;
-    const matchesStatus =
-      filterStatus === 'all' ||
-      (filterStatus === 'active' && worker.isActive) ||
-      (filterStatus === 'inactive' && !worker.isActive);
-
-    return matchesSearch && matchesRole && matchesStatus;
+    // Ya no filtramos por estado en la UI
+    return matchesSearch && matchesRole;
   });
 
   // Handlers de modal
@@ -78,19 +79,77 @@ const WorkersPage: React.FC = () => {
     }
   };
 
-  const handleToggleStatus = async (worker: UserData) => {
+  const handleDeleteWorker = (worker: UserData) => {
+    // Mostrar confirmación
+    const confirmed = window.confirm(
+      `¿Está seguro que quiere eliminar a ${worker.fullName}? Esta acción se podrá deshacer durante 10 segundos.`,
+    );
+
+    if (!confirmed) return;
+
     try {
-      if (worker.isActive) {
-        await workersService.deactivateWorker(worker.uid);
-      } else {
-        await workersService.activateWorker(worker.uid);
+      // Limpiar timeout anterior si existe
+      if (undoState) {
+        clearTimeout(undoState.timeoutId);
       }
 
-      setWorkers((prev) =>
-        prev.map((w) => (w.uid === worker.uid ? { ...w, isActive: !w.isActive } : w)),
-      );
+      // Eliminar de la UI inmediatamente
+      setWorkers((prev) => prev.filter((w) => w.uid !== worker.uid));
+
+      // Crear timeout para la eliminación permanente
+      const timeoutId = setTimeout(() => {
+        workersService.deactivateWorker(worker.uid)
+          .catch((error) => {
+            console.error('Error al deactivar trabajador:', error);
+            // Re-agregar el trabajador si hay error
+            setWorkers((prev) => {
+              const exists = prev.some((w) => w.uid === worker.uid);
+              if (!exists) {
+                return [...prev, worker];
+              }
+              return prev;
+            });
+          });
+        // Limpiar el estado de undo
+        setUndoState(null);
+      }, 10000); // 10 segundos
+
+      // Guardar el estado de undo
+      setUndoState({ worker, timeoutId });
     } catch (error) {
-      alert('Error cambiando estado: ' + (error as Error).message);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      alert('Error eliminando trabajador: ' + errorMessage);
+      // Re-agregar el trabajador si hay error inmediato
+      setWorkers((prev) => {
+        const exists = prev.some((w) => w.uid === worker.uid);
+        if (!exists) {
+          return [...prev, worker];
+        }
+        return prev;
+      });
+    }
+  };
+
+  const handleUndoDelete = () => {
+    if (!undoState) return;
+
+    try {
+      // Cancelar el timeout
+      clearTimeout(undoState.timeoutId);
+
+      // Re-agregar el trabajador a la lista
+      setWorkers((prev) => {
+        const exists = prev.some((w) => w.uid === undoState.worker.uid);
+        if (!exists) {
+          return [...prev, undoState.worker];
+        }
+        return prev;
+      });
+
+      // Limpiar el estado de undo
+      setUndoState(null);
+    } catch (error) {
+      alert('Error al deshacer: ' + (error as Error).message);
     }
   };
 
@@ -138,7 +197,7 @@ const WorkersPage: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
                 <input
@@ -162,19 +221,6 @@ const WorkersPage: React.FC = () => {
                   <option value="admin">Administrador</option>
                 </select>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#2D6EA4] focus:border-[#2D6EA4] text-sm"
-                >
-                  <option value="all">Todos</option>
-                  <option value="active">Activos</option>
-                  <option value="inactive">Inactivos</option>
-                </select>
-              </div>
             </div>
           </div>
 
@@ -189,12 +235,6 @@ const WorkersPage: React.FC = () => {
                 <div className="text-sm font-medium text-gray-500">Activos</div>
                 <div className="mt-1 text-xl font-semibold text-green-600">
                   {workers.filter((w) => w.isActive).length}
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-sm font-medium text-gray-500">Inactivos</div>
-                <div className="mt-1 text-xl font-semibold text-red-600">
-                  {workers.filter((w) => !w.isActive).length}
                 </div>
               </div>
               <div className="text-center">
@@ -216,19 +256,16 @@ const WorkersPage: React.FC = () => {
                   <th className="w-[25%] px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Nombre
                   </th>
-                  <th className="w-[15%] px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="x-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     DNI
                   </th>
-                  <th className="w-[25%] px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="w-[10%] px-3 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Rol
                   </th>
-                  <th className="w-[10%] px-3 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="w-[15%] px-3 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Acciones
                   </th>
                 </tr>
@@ -236,7 +273,7 @@ const WorkersPage: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredWorkers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-10 text-center text-gray-500 italic">
+                  <td colSpan={5} className="px-3 py-10 text-center text-gray-500 italic">
                     No se encontraron trabajadores
                   </td>
                 </tr>
@@ -266,17 +303,6 @@ const WorkersPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-3 py-4 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                        ${
-                          worker.isActive
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {worker.isActive ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-4 text-center">
                       <div className="flex justify-center space-x-1">
                         <button
                           onClick={() => handleViewWorker(worker)}
@@ -291,14 +317,10 @@ const WorkersPage: React.FC = () => {
                           Editar
                         </button>
                         <button
-                          onClick={() => void handleToggleStatus(worker)}
-                          className={`inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded-lg transition-colors duration-200 ${
-                            worker.isActive
-                              ? 'text-red-700 bg-red-100 hover:bg-red-200'
-                              : 'text-green-700 bg-green-100 hover:bg-green-200'
-                          }`}
+                          onClick={() => handleDeleteWorker(worker)}
+                          className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded-lg text-red-700 bg-red-100 hover:bg-red-200 transition-colors duration-200"
                         >
-                          {worker.isActive ? 'Desactivar' : 'Activar'}
+                          Eliminar
                         </button>
                       </div>
                     </td>
@@ -318,6 +340,23 @@ const WorkersPage: React.FC = () => {
         worker={selectedWorker}
         mode={modalMode}
       />
+
+      {/* Notificación de Undo */}
+      {undoState && (
+        <div className="fixed bottom-6 right-6 bg-gray-900 text-white px-6 py-4 rounded-lg shadow-xl flex items-center justify-between space-x-4 animate-slide-in-up max-w-sm">
+          <div className="flex-1">
+            <p className="text-sm font-medium">
+              <span className="font-semibold">{undoState.worker.fullName}</span> ha sido eliminado.
+            </p>
+          </div>
+          <button
+            onClick={handleUndoDelete}
+            className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold transition-colors duration-200 whitespace-nowrap"
+          >
+            Deshacer
+          </button>
+        </div>
+      )}
     </div>
   </div>
   );
