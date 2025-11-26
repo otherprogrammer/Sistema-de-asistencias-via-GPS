@@ -17,9 +17,13 @@ export class AttendanceService {
   // Obtener estado en tiempo real de todos los trabajadores
   async getRealtimeWorkerStatus(): Promise<WorkerAttendanceStatus[]> {
     try {
-      // Obtener todos los trabajadores
+      // Obtener todos los trabajadores activos
       const workersSnapshot = await getDocs(
-        query(collection(db, this.USERS_COLLECTION), where('role', '!=', 'admin'))
+        query(
+          collection(db, this.USERS_COLLECTION),
+          where('role', '!=', 'admin'),
+          where('isActive', '==', true)
+        )
       );
 
       const workers = workersSnapshot.docs.map(doc => doc.data());
